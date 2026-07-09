@@ -1,0 +1,92 @@
+# Interjet ISP Customer Support Skill
+
+## 1. Company Overview
+
+- **Company Name:** Interjet
+- **Service:** High-speed internet provider.
+
+## 2. Core Principles
+
+- **Tone:** Empathetic, professional, and efficient.
+- **Goal:** Resolve customer issues on the first call whenever possible.
+- **Primary Language:** Tamil (customer), English (internal summary).
+
+## 3. Standard Operating Procedures (SOPs)
+
+### 3.1. Call Analysis Workflow
+
+When analyzing a customer call audio file, follow these steps:
+1.  **Transcribe and Translate:** Transcribe the Tamil audio to text and then translate it to English.
+2.  **Identify the Customer's Issue:** Based on the English translation, identify the main reason for the call.
+3.  **Categorize the Issue:** Assign one of the categories from the "Issue Categories" section below.
+4.  **Extract Key Information:** Pull out specific details like account numbers, plan names, mentioned dates, etc.
+5.  **Analyze Supplementary Evidence:** If screenshots are provided, analyze them according to the guidelines in the "Evidence Analysis" section.
+6.  **Generate a Summary:** Create a concise summary in English that includes:
+    *   Customer's name (if mentioned).
+    *   The categorized issue.
+    *   Key information extracted.
+    *   A summary of the provided evidence.
+    *   The recommended next step based on these procedures.
+
+### 3.2. Issue Categories & Troubleshooting Steps
+
+#### a. Connectivity Issue
+
+- **Keywords:** "internet not working", "no connection", "slow speed", "disconnecting", "wifi problem", "router issue".
+- **Troubleshooting Steps:**
+    1.  Ask the customer to check the router lights (see "Router Light Analysis" below).
+    2.  Guide them to restart the router (power off for 30 seconds, then power on).
+    3.  If the issue persists, check for a local outage in their area.
+    4.  If no outage, schedule a technician visit.
+- **Summary Example:** "Customer is facing a connectivity issue. Router's 'Internet' light is red. A restart did not solve the problem. Recommended next step: Schedule a technician visit."
+
+#### b. Billing Issue / Account Deactivated
+
+- **Keywords:** "bill too high", "payment failed", "account deactivated", "recharge not working", "invoice", "due date".
+- **Troubleshooting Steps:**
+    1.  Verify the customer's payment history using their account number.
+    2.  Analyze any provided payment screenshots (see "Payment Screenshot Analysis" below).
+    3.  If payment was made but not reflected, escalate to the billing department with the payment proof.
+    4.  If the account was deactivated for non-payment and payment is now confirmed, reactivate the account.
+- **Summary Example:** "Customer's account was deactivated. They have provided a screenshot of a successful payment made yesterday. Recommended next step: Escalate to billing to verify payment and reactivate the account."
+
+#### c. Plan Change / Upgrade Request
+
+- **Keywords:** "new plan", "upgrade speed", "change my plan", "better offer".
+- **Procedure:**
+    1.  Inform the customer about the latest available plans and offers.
+    2.  Confirm the plan they wish to switch to.
+    3.  Process the plan change request in the system.
+- **Summary Example:** "Customer wants to upgrade from the 'Basic 50Mbps' plan to the 'Pro 100Mbps' plan. They have been informed of the new monthly cost. Recommended next step: Process the plan upgrade."
+
+#### d. Other Issues
+
+- **Procedure:** If the issue does not fall into the above categories, create a general service ticket with a detailed description of the customer's problem.
+- **Summary Example:** "Customer is reporting an issue not covered by standard categories. [Provide a detailed summary of the problem]. Recommended next step: Create a general service ticket for further investigation."
+
+
+## 4. Evidence Analysis
+
+### 4.1. Router Light Analysis
+
+- **Power Light:**
+    - **Solid Green:** Router has power.
+    - **Off:** No power. Check power adapter and outlet.
+- **Internet / WAN Light:**
+    - **Solid or Blinking Green:** Connected to the internet.
+    - **Solid or Blinking Red/Orange:** Connection problem.
+    - **Off:** No connection detected from the modem.
+- **WiFi / WLAN Light:**
+    - **Solid or Blinking Green:** WiFi is broadcasting.
+    - **Off:** WiFi is disabled.
+- **LOS (Loss of Signal) Light:**
+    - **Blinking Red:** Optical signal is not being received. This is a critical issue that requires a technician.
+
+### 4.2. Payment Screenshot Analysis
+
+- **Information to look for:**
+    - **Transaction ID / Reference Number.**
+    - **Date and Time of payment.**
+    - **Amount Paid.**
+    - **Beneficiary Name (should be "Interjet" or similar).**
+- **Action:** Use the Transaction ID to trace the payment in the billing system.

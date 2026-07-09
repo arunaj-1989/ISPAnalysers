@@ -1,0 +1,18 @@
+--index-url https://download.pytorch.org/whl/cu121
+--extra-index-url https://pypi.org/simple
+
+# Core dependencies for streaming Tamil-to-English translation with Whisper on GPU.
+torch==2.5.1+cu121
+openai-whisper==20250625
+sounddevice==0.5.5
+numpy==1.26.4
+scipy==1.11.4
+numba==0.66.0
+llvmlite==0.48.0
+
+# Streamlit chat UI and browser microphone streaming.
+streamlit==1.47.0
+streamlit-webrtc==0.63.4
+streamlit-autorefresh==1.0.1
+indic-transliteration==2.3.82
+ollama==0.2.1

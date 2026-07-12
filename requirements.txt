@@ -1,18 +1,27 @@
 --index-url https://download.pytorch.org/whl/cu121
 --extra-index-url https://pypi.org/simple
 
+# Build dependency
+wheel # Ensures pip can build wheels from source
+
+# OCR dependency
+easyocr
+
 # Core dependencies for streaming Tamil-to-English translation with Whisper on GPU.
-torch==2.5.1+cu121
-openai-whisper==20250625
-sounddevice==0.5.5
-numpy==1.26.4
-scipy==1.11.4
-numba==0.66.0
-llvmlite==0.48.0
+# Use stable versions of torch compiled for CUDA 12.1
+torch==2.3.1
+torchvision==0.18.1
+torchaudio==2.3.1
+openai-whisper
+sounddevice
+numpy
+scipy
+numba
+llvmlite
 
 # Streamlit chat UI and browser microphone streaming.
-streamlit==1.47.0
-streamlit-webrtc==0.63.4
+streamlit>=1.33.0
+streamlit-webrtc>=0.47.0
 streamlit-autorefresh==1.0.1
-indic-transliteration==2.3.82
+indic-transliteration>=2.3.0
 ollama==0.2.1

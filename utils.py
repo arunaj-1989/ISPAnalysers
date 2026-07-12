@@ -15,9 +15,9 @@ try:
         raise ImportError("Detected legacy 'whisper' package.")
 except Exception as exc:
     st.error(
-        "Whisper import failed. Run: "
-        "C:/Users/aruna/anaconda3/python.exe -m pip install openai-whisper"
+        "The 'openai-whisper' package is not installed. This is a critical dependency."
     )
+    st.code("pip install openai-whisper", language="bash")
     st.caption(str(exc))
     st.stop()
 
@@ -140,11 +140,13 @@ class DecodeWorker:
                 self._decode(self._buffer[-self.window_samples:])
 
     def _decode(self, chunk: np.ndarray):
-        if self.model is None:
-            return
+        # Acquire lock to ensure model isn't unloaded during transcription
+        with self.lock:
+            if self.model is None:
+                return
 
-        rms  = float(np.sqrt(np.mean(np.square(chunk))))
-        peak = float(np.max(np.abs(chunk))) if chunk.size else 0.0
+            rms  = float(np.sqrt(np.mean(np.square(chunk))))
+            peak = float(np.max(np.abs(chunk))) if chunk.size else 0.0
         with self.lock:
             self.last_rms  = rms
             self.last_peak = peak
@@ -158,23 +160,26 @@ class DecodeWorker:
         tmp = Path(tempfile.mktemp(suffix=".wav"))
         try:
             wav_write(str(tmp), SAMPLE_RATE, chunk_int16)
-            self._log(f"Decoding – rms={rms:.4f}  peak={peak:.4f}  samples={len(chunk)}")
-
-            tamil_r = self.model.transcribe(
-                str(tmp), task="transcribe", language=SOURCE_LANGUAGE,
-                fp16=True, temperature=0, condition_on_previous_text=False,
-                no_speech_threshold=0.6, beam_size=5,
-            )
-            self._log("Tamil done.")
-
-            english_r = self.model.transcribe(
-                str(tmp), task="translate", language=SOURCE_LANGUAGE,
-                fp16=True, temperature=0, condition_on_previous_text=False,
-                no_speech_threshold=0.6, beam_size=5,
-            )
-            self._log("English done.")
-
+            # Re-acquire lock for the transcription part
             with self.lock:
+                if self.model is None: # Check again in case it was unloaded
+                    return
+                self._log(f"Decoding – rms={rms:.4f}  peak={peak:.4f}  samples={len(chunk)}")
+
+                tamil_r = self.model.transcribe(
+                    str(tmp), task="transcribe", language=SOURCE_LANGUAGE,
+                    fp16=True, temperature=0, condition_on_previous_text=False,
+                    no_speech_threshold=0.6, beam_size=5,
+                )
+                self._log("Tamil done.")
+
+                english_r = self.model.transcribe(
+                    str(tmp), task="translate", language=SOURCE_LANGUAGE,
+                    fp16=True, temperature=0, condition_on_previous_text=False,
+                    no_speech_threshold=0.6, beam_size=5,
+                )
+                self._log("English done.")
+
                 self.chunks_decoded += 1
                 self.last_error = ""
 

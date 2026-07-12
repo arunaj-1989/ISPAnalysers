@@ -1,23 +1,22 @@
-# Tamil Speech Translation and Analysis Suite
+# ISP Analysers
 
-This is a Streamlit web application designed for real-time and file-based translation of Tamil speech to English. It integrates powerful AI models to not only translate but also analyze the content of conversations for customer support scenarios.
+This is a Streamlit web application designed for analyzing ISP data. It integrates powerful AI models to extract and process information from various sources.
 
 ## ✨ Features
 
--   **🎤 Live Translation**: Translates Tamil speech from a microphone into English text in real-time.
--   **📂 File-Based Translation**: Upload audio files (WAV, MP3, M4A) to get a full Tamil transcription and English translation.
--   **🤖 AI-Powered Call Analysis**: Uses a local Large Language Model (Ollama with `phi3`) to automatically categorize the customer's issue and suggest a next step based on predefined business logic (`skill.md`).
--   **🖼️ Screenshot Analysis**: For billing-related issues, it allows uploading a payment screenshot and uses a vision-capable model (`llava-phi3`) to perform OCR and verify payment details.
--   **⚙️ GPU Accelerated**: Leverages NVIDIA GPUs via CUDA for fast and efficient audio transcription with Whisper.
+-   **🤖 AI-Powered Analysis**: Uses a local Large Language Model (Ollama with `phi3`) to automatically categorize issues and suggest next steps.
+-   **🎤 Audio Transcription**: Transcribes speech from audio files into text using `openai-whisper`.
+-   **🖼️ Image-to-Text**: Extracts text from images (like screenshots of router errors or payment details) using `EasyOCR`.
+-   **⚙️ GPU Accelerated**: Leverages NVIDIA GPUs via CUDA for fast and efficient audio transcription (Whisper) and text extraction (EasyOCR).
 
 ## Architecture Overview
 
 The application uses a combination of technologies:
 
 -   **Frontend**: `Streamlit` for the user interface.
--   **Live Audio**: `streamlit-webrtc` captures microphone input.
 -   **Speech-to-Text**: `openai-whisper` runs on the GPU for fast transcription and translation.
--   **AI Analysis**: `Ollama` serves local language models (`phi3` for text, `llava-phi3` for vision) to provide insights.
+-   **Text Extraction**: `EasyOCR` handles text extraction from images.
+-   **AI Analysis**: `Ollama` serves a local language model (`phi3`) for text analysis.
 -   **Backend Logic**: A persistent background worker (`DecodeWorker`) processes audio independently of UI refreshes.
 
 ##  Prerequisites
@@ -25,97 +24,63 @@ The application uses a combination of technologies:
 ### Hardware
 
 -   **Server**: A server running a Linux distribution (Ubuntu is recommended).
--   **GPU**: An NVIDIA GPU with CUDA support is **required**. The application is configured to run models on the GPU for performance.
+-   **GPU**: An NVIDIA GPU with CUDA support is **required** for optimal performance.
 
 ### Software
 
--   **Python**: Version 3.9 or higher.
+-   **Python**: Version 3.11 is **required**. The dependencies for `openai-whisper` are not yet compatible with newer Python versions.
 -   **NVIDIA Drivers & CUDA Toolkit**: The server must have the appropriate NVIDIA drivers and CUDA Toolkit (version 12.1 is recommended) installed.
 -   **Ollama**: The Ollama service must be installed to run the local language models.
 -   **FFmpeg**: A system utility required by Whisper for audio processing.
 
 ---
 
-## 🚀 Hosting and Installation Guide
+## 🚀 Installation Guide
 
-Follow these steps to deploy the application on your server.
+### For Linux (Ubuntu)
 
-### 1. Clone the Repository
+1.  **Clone the Repository**: Get the project files onto your server.
 
-First, get the project files onto your server.
+    ```bash
+    # Replace with your repository's URL
+    git clone <your-repository-url>
+    cd <repository-directory>
+    ```
 
-```bash
-# Replace with your repository's URL
-git clone <your-repository-url>
-cd <repository-directory>
-```
+2.  **Run the Setup Script**: This script handles all dependencies, Python environment setup, and AI model downloads.
 
-### 2. Install System Dependencies
+    ```bash
+    chmod +x setup_server.sh
+    ./setup_server.sh
+    ```
+    The script will guide you if any dependencies are missing and will set up everything required to run the application.
 
-Update your package list and install `ffmpeg` and Python tools.
+### For Windows
 
-```bash
-sudo apt-get update
-sudo apt-get install -y python3-pip python3-venv ffmpeg
-```
+1.  **Clone the Repository**: Get the project files onto your machine.
+2.  **Set PowerShell Execution Policy**: By default, Windows may prevent you from running local PowerShell scripts. To fix this, open a PowerShell terminal and run the following command once:
 
-### 3. Install and Configure Ollama
+    ```powershell
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+    ```
 
-The application relies on local AI models served by Ollama.
+3.  **Run the Setup Script**: In the same PowerShell terminal, run the setup script. It will check for dependencies, set up the environment, and download all necessary models.
 
-```bash
-# Install the Ollama service
-curl -fsSL https://ollama.com/install.sh | sh
+    ```powershell
+    .\setup_server.ps1
+    ```
 
-# Pull the required models. This will take some time and disk space.
-ollama pull phi3
-ollama pull llava-phi3
-```
+## ▶️ Run the Application
 
-The Ollama service will start automatically and run in the background.
+After the setup script has completed successfully, you can start the application using the provided run scripts.
 
-### 4. Set Up Python Environment
+### For Linux (Ubuntu)
 
-It's best practice to use a virtual environment to manage Python dependencies.
-
-```bash
-# Create a virtual environment
-python3 -m venv .venv
-
-# Activate the environment
-source .venv/bin/activate
-```
-
-### 5. Install Python Libraries
-
-Create a `requirements.txt` file with all the necessary libraries.
-
-```ini
-# requirements.txt
-streamlit
-openai-whisper
-torch --index-url https://download.pytorch.org/whl/cu121
-ollama
-streamlit-webrtc
-streamlit-autorefresh
-numpy
-scipy
-```
-
-Now, install them using pip.
-
-```bash
-pip install -r requirements.txt
-```
-
-### 6. Run the Application
-
-A convenience script, `run_app.sh`, is provided to start the application correctly.
-
-First, make the script executable:
+The `run_app.sh` script will activate the correct environment and launch the app.
 
 ```bash
 chmod +x run_app.sh
+./run_app.sh
 ```
 
 Your application will be accessible in a web browser at `http://<your-server-ip>:8501`.

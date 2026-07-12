@@ -1,5 +1,4 @@
 import streamlit as st
-import whisper
 import torch
 import tempfile
 import time
@@ -9,59 +8,72 @@ from pathlib import Path
 
 try:
     import ollama
+    import easyocr
     OLLAMA_AVAILABLE = True
+
 except ImportError:
     OLLAMA_AVAILABLE = False
+    easyocr = None # type: ignore
 
-def analyze_payment_screenshot(image_bytes: bytes) -> str:
-    """
-    Uses a vision model via Ollama to perform OCR on a payment screenshot.
-    """
-    # In a real app, you'd get this dynamically, e.g., from datetime.now()
-    current_month_year = time.strftime("%B %Y")
+ocr_model = None
 
-    prompt = f"""
-    You are an expert OCR assistant for Interjet ISP. Your task is to analyze the provided image of a payment receipt and extract key details.
-
-    Refer to the "Payment Screenshot Analysis" section of the company's SOPs for the information you need to find:
-    - Transaction ID / Reference Number.
-    - Date and Time of payment.
-    - Amount Paid.
-    - Beneficiary Name (should be "Interjet" or similar).
-
-    After extracting the information, please check if the 'Date of Payment' falls within the current month and year ({current_month_year}).
-
-    Provide your response as a concise summary.
-    """
+def get_ocr_model():
+    """Initializes and returns the PaddleOCR model, caching it in a global variable."""
+    global ocr_model
+    if ocr_model is not None:
+        return ocr_model
 
     try:
-        with st.spinner("Analyzing payment screenshot..."):
-            response = ollama.chat(
-                model='llava-phi3', # Use the vision model
-                messages=[
-                    {
-                        'role': 'user',
-                        'content': prompt,
-                        'images': [image_bytes], # Pass the image bytes
-                    },
-                ],
-            )
-            return response['message']['content']
+        st.info("Loading OCR model (EasyOCR)...")
+        use_gpu = torch.cuda.is_available()
+        ocr_model = easyocr.Reader(['en'], gpu=use_gpu, model_storage_directory=str(Path.home() / ".EasyOCR" / "model"))
+        device = "GPU" if use_gpu else "CPU"
+        st.info(f"OCR model loaded on {device}.")
+        return ocr_model
     except Exception as e:
-        st.error(f"Could not connect to the Ollama vision model. Please ensure you have run `ollama pull llava-phi3`.")
-        return f"An error occurred during image analysis: {e}"
+        st.error(f"Failed to initialize EasyOCR. It will be disabled. Error: {e}")
+        return None
 
-def categorize_and_suggest_fix(translated_text: str, worker) -> (str, str):
+def extract_text_from_image(ocr_instance, image_bytes: bytes) -> str:
+    """
+    Uses EasyOCR to extract text from an image.
+    """
+    with st.spinner("Performing OCR on screenshot..."):
+        try:
+            if ocr_instance is None:
+                raise RuntimeError("EasyOCR is not available or failed to initialize.")
+                
+            result = ocr_instance.readtext(image_bytes, detail=0, paragraph=True)
+            if not result:
+                return ""
+            
+            return "\n".join(result)
+        except Exception as e:
+            st.error(f"An error occurred during OCR with EasyOCR: {e}")
+            return ""
+
+
+def categorize_and_suggest_fix(translated_text: str, worker, screenshot_text: str | None = None, model_name: str | None = None) -> (str, str):
     """
     Uses an Ollama SLM to categorize the text and provide a suggested fix
     based on the skill.md file.
     """
     try:
+        # model_name is passed from the main thread to reload whisper later
         skill_content = Path("skill.md").read_text(encoding="utf-8")
-        model_name = worker.model_name # Keep track of the current whisper model
     except FileNotFoundError:
         st.error("The `skill.md` file was not found. Please ensure it exists in the root directory.")
         return "Error", "The `skill.md` file was not found."
+
+    screenshot_context = ""
+    if screenshot_text:
+        screenshot_context = f"""
+    Additionally, the user has provided a screenshot. Here is the text extracted from it:
+    ---
+    {screenshot_text}
+    ---
+    Use the information from this screenshot as supplementary evidence to support your analysis, especially for issues related to billing, payments, or router errors.
+    """
 
     prompt = f"""
     You are an expert ISP support agent assistant. Your task is to analyze a customer complaint and provide a category and a suggested fix based on a set of standard operating procedures.
@@ -70,11 +82,11 @@ def categorize_and_suggest_fix(translated_text: str, worker) -> (str, str):
     ---
     {skill_content}
     ---
-
     Here is the English translation of the customer conversation:
     ---
     {translated_text}
     ---
+    {screenshot_context}
 
     Based on the SOPs and the conversation, please perform the following:
     1.  **Categorize the issue:** Choose the most appropriate category from the "Issue Categories" section of the SOPs.
@@ -87,10 +99,14 @@ def categorize_and_suggest_fix(translated_text: str, worker) -> (str, str):
 
     try:
         # Unload Whisper model to free up VRAM for Ollama
-        st.info("Unloading Whisper model to free up VRAM for local AI...")
-        worker.model = None
-        torch.cuda.empty_cache()
-        time.sleep(2) # Give a moment for memory to be released
+        with worker.lock:
+            if worker.model is not None:
+                st.info("Unloading Whisper model to free up VRAM for local AI...")
+                # Move model to CPU and delete to free VRAM
+                worker.model = worker.model.to('cpu')
+                del worker.model
+                worker.model = None
+                torch.cuda.empty_cache()
 
         with st.spinner("Asking the local AI for suggestions..."):
             response = ollama.chat(
@@ -98,7 +114,7 @@ def categorize_and_suggest_fix(translated_text: str, worker) -> (str, str):
                 messages=[{'role': 'user', 'content': prompt}],
             )
             response_text = response['message']['content']
-        
+
         # Parse the response
         category_match = re.search(r"Category: (.*)", response_text)
         fix_match = re.search(r"Fix: (.*)", response_text, re.DOTALL)
@@ -113,9 +129,11 @@ def categorize_and_suggest_fix(translated_text: str, worker) -> (str, str):
         return "Error", str(e)
     finally:
         # Reload the whisper model
-        st.info("Reloading Whisper model...")
-        worker.load_model(model_name, "cuda")
-
+        if model_name:
+            st.info("Reloading Whisper model...")
+            with worker.lock:
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                worker.load_model(model_name, device)
 
 def transcribe_robust(model, audio_path, **kwargs):
     """
@@ -132,6 +150,64 @@ def transcribe_robust(model, audio_path, **kwargs):
         else:
             raise e
 
+def get_ollama_device_info(model_name: str) -> str:
+    """Checks if an Ollama model is loaded on CPU or GPU."""
+    if not OLLAMA_AVAILABLE:
+        return "N/A"
+    try:
+        details = ollama.show(model_name)
+        # The presence of 'gpu' in the parameter keys is a strong indicator.
+        # This is a heuristic as the Ollama API doesn't give a simple 'device' field.
+        if any('gpu' in key for key in details.get('parameters', {})):
+            return "GPU"
+        return "CPU"
+    except Exception:
+        # If the model isn't pulled or Ollama isn't running, we can't know.
+        return "Unknown"
+
+def run_ai_analysis(english_text, worker, screenshot_file, progress_bar):
+    """
+    Handles the OCR and Ollama analysis part of the workflow.
+    """
+    st.markdown("---")
+    st.subheader("Call & Evidence Analysis")
+
+    # --- Screenshot OCR ---
+    screenshot_text = None
+    if screenshot_file:
+        progress_bar.progress(70, text="Analyzing screenshot...")
+        try:
+            ocr_instance = get_ocr_model()
+            if ocr_instance:
+                screenshot_text = extract_text_from_image(ocr_instance, screenshot_file.getvalue())
+                if screenshot_text:
+                    with st.expander("Extracted Screenshot Text"):
+                        st.text(screenshot_text)
+                else:
+                    st.warning("Could not extract any text from the uploaded screenshot.")
+                
+                # Unload OCR model to free VRAM before running the local LLM
+                global ocr_model
+                if ocr_model is not None:
+                    del ocr_model
+                    ocr_model = None
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    st.info("Unloaded OCR model to free VRAM.")
+        except Exception as e:
+            st.error(f"An error occurred during screenshot processing: {e}")
+    # --- Ollama Analysis ---
+    progress_bar.progress(80, text="Categorizing issue with local AI...")
+    with st.container(border=True):
+        text_model_device = get_ollama_device_info('phi3')
+        st.caption(f"Local AI Model: `phi3` on **{text_model_device}** | OCR Engine: `EasyOCR`")
+
+        category, fix = categorize_and_suggest_fix(english_text, worker, screenshot_text=screenshot_text, model_name=worker.model_name)
+        if category != "Error":
+            st.markdown("##### Issue Category")
+            st.info(category)
+            st.markdown("##### Suggested Next Step")
+            st.success(fix)
 
 st.set_page_config(page_title="Speech Analyser", layout="wide")
 
@@ -159,92 +235,92 @@ if device_name == "GPU":
     gpu_memory_info = f" ({total_gpu_memory_gb:.2f} GB)"
 st.caption(f"Device: **{device_name}{gpu_memory_info}** | Model: **{model_name}**")
 
-uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3", "m4a"])
+st.markdown("---")
 
-if uploaded_file is not None:
-    with st.spinner("Translating..."):
+# --- Step 1: File Upload ---
+st.subheader("Step 1: Upload Audio and Evidence")
+col_audio, col_screenshot = st.columns(2)
+with col_audio:
+    uploaded_file = st.file_uploader("Upload an audio file for analysis", type=["wav", "mp3", "m4a"])
+with col_screenshot:
+    screenshot_file = st.file_uploader("Upload supplementary screenshot (optional)", type=["png", "jpg", "jpeg"])
+
+start_analysis = st.button("Start Analysis", type="primary", use_container_width=True, disabled=not uploaded_file)
+
+st.markdown("---")
+
+# --- Step 2: Analysis Results ---
+if start_analysis and uploaded_file:
+    st.subheader("Step 2: Analysis Results")
+    progress_bar = st.progress(0, text="Starting analysis...")
+
+    try:
+        # --- Model Loading ---
+        progress_bar.progress(5, text="Loading Whisper model...")
         worker = get_worker()
-        worker.load_model(model_name, "cuda")
+        # Ensure the model is loaded, especially if it was unloaded in a previous run
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        if worker.model is None or worker.model_name != model_name:
+            worker.load_model(model_name, device)
 
+        # --- File Handling ---
+        progress_bar.progress(10, text="Preparing audio file...")
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_audio:
             tmp_audio.write(uploaded_file.getvalue())
             tmp_audio_path = tmp_audio.name
 
-        try:
-            start_time = time.time()
-            # Transcribe (Tamil)
-            tamil_result = transcribe_robust(
-                worker.model,
-                tmp_audio_path,
-                task="transcribe",
-                language=SOURCE_LANGUAGE,
-                fp16=True,
-                temperature=0,
-                condition_on_previous_text=False,
-                no_speech_threshold=0.6,
-                beam_size=5,
-            )
-            tamil_text = tamil_result.get("text", "").strip()
+        start_time = time.time()
+        # --- Transcription ---
+        progress_bar.progress(25, text="Transcribing audio to Tamil...")
+        tamil_result = transcribe_robust(
+            worker.model,
+            tmp_audio_path,
+            task="transcribe",
+            language=SOURCE_LANGUAGE,
+            fp16=True, temperature=0, condition_on_previous_text=False,
+            no_speech_threshold=0.6, beam_size=5,
+        )
+        tamil_text = tamil_result.get("text", "").strip()
 
-            # Translate (English)
-            english_result = transcribe_robust(
-                worker.model,
-                tmp_audio_path,
-                task="translate",
-                language=SOURCE_LANGUAGE,
-                fp16=True,
-                temperature=0,
-                condition_on_previous_text=False,
-                no_speech_threshold=0.6,
-                beam_size=5,
-            )
-            english_text = english_result.get("text", "").strip()
-            end_time = time.time()
-            translation_time = end_time - start_time
+        # --- Translation ---
+        progress_bar.progress(50, text="Translating text to English...")
+        english_result = transcribe_robust(
+            worker.model,
+            tmp_audio_path,
+            task="translate",
+            language=SOURCE_LANGUAGE,
+            fp16=True, temperature=0, condition_on_previous_text=False,
+            no_speech_threshold=0.6, beam_size=5,
+        )
+        english_text = english_result.get("text", "").strip()
+        end_time = time.time()
+        translation_time = end_time - start_time
 
+        # --- Display Transcription & Translation ---
+        progress_bar.progress(60, text="Processing results...")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Tamil Transcription")
+            st.text_area("Tamil", tamil_text, height=200)
+        with col2:
+            st.subheader("English Translation")
+            st.text_area("English", english_text, height=200)
+        st.caption(f"Transcription & Translation time: {translation_time:.2f} seconds")
+
+        # --- AI Analysis Section ---
+        if english_text and OLLAMA_AVAILABLE:
+            run_ai_analysis(english_text, worker, screenshot_file, progress_bar)
+        elif english_text:
             st.markdown("---")
-            col1, col2 = st.columns(2)
+            st.warning("The `ollama` or `easyocr` library is not installed, so call analysis is disabled.")
+            st.code("pip install ollama easyocr", language="bash")
+            st.info("Install the library and restart the app to enable this feature.")
 
-            with col1:
-                st.subheader("Tamil Transcription")
-                st.text_area("Tamil", tamil_text, height=200)
+        progress_bar.progress(100, text="Analysis complete!")
+        time.sleep(1) # Give user a moment to see the final message
+        progress_bar.empty() # Hide the progress bar
 
-            with col2:
-                st.subheader("English Translation")
-                st.text_area("English", english_text, height=200)
-
-            st.caption(f"Translation time: {translation_time:.2f} seconds")
-
-            # --- Analysis Section ---
-            if english_text:
-                st.markdown("---")
-                st.subheader("Call Analysis")
-                if OLLAMA_AVAILABLE:
-                    with st.container(border=True):
-                        category, fix = categorize_and_suggest_fix(english_text, worker)
-                        if category != "Error":
-                            col3, col4 = st.columns(2)
-                            with col3:
-                                st.markdown("##### Issue Category")
-                                st.info(category)
-
-                            with col4:
-                                st.markdown("##### Suggested Next Step")
-                                st.success(fix)
-
-                        # Add the payment verification section if relevant
-                        if "billing" in category.lower() or "deactivated" in category.lower():
-                            st.markdown("---")
-                            st.markdown("##### Payment Verification")
-                            screenshot_file = st.file_uploader("Upload Payment Screenshot", type=["png", "jpg", "jpeg"])
-                            if screenshot_file:
-                                analysis_result = analyze_payment_screenshot(screenshot_file.getvalue())
-                                st.markdown("###### Analysis Result")
-                                st.info(analysis_result)
-                else:
-                    st.warning("The `ollama` library is not installed, so call analysis is disabled.")
-                    st.code("pip install ollama", language="bash")
-                    st.info("Install the library and restart the app to enable this feature.")
-
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
+    except Exception as e:
+        st.error(f"An error occurred: {e}")
+        if 'progress_bar' in locals():
+            progress_bar.empty()

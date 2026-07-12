@@ -70,11 +70,6 @@ st.markdown("""
 
 ensure_state()
 
-if not torch.cuda.is_available():
-    st.error("GPU is required. Launch with: "
-             "C:/Users/aruna/anaconda3/python.exe -m streamlit run streamlit_app.py")
-    st.stop()
-
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Session Controls")
@@ -99,15 +94,20 @@ with st.sidebar:
             worker._logs.clear()
 
 # ── Worker: load model & apply config ─────────────────────────────────────────
+has_gpu = torch.cuda.is_available()
 worker = get_worker()
-worker.load_model(model_name, "cuda")
-worker.window_samples = int(SAMPLE_RATE * window_seconds)
-worker.step_seconds   = step_seconds
+if has_gpu:
+    worker.load_model(model_name, "cuda")
+    worker.window_samples = int(SAMPLE_RATE * window_seconds)
+    worker.step_seconds   = step_seconds
 
 # ── Header ────────────────────────────────────────────────────────────────────
 st.markdown("<h1>Tamil Live Translation Chat</h1>", unsafe_allow_html=True)
-device_name = "GPU" if torch.cuda.is_available() else "CPU"
+device_name = "GPU" if has_gpu else "CPU"
 st.caption(f"Device: **{device_name}** | Model: **{model_name}**")
+
+if not has_gpu:
+    st.error("Live speech translation requires a GPU, but none was detected. Please use the 'File Translation' page instead.")
 
 # ── Stats bar ─────────────────────────────────────────────────────────────────
 stats = worker.get_stats()
@@ -131,6 +131,7 @@ with st.expander("Processing log", expanded=False):
 
 ctx = webrtc_streamer(
     key="tamil-live-chat",
+    disabled=not has_gpu,
     mode=WebRtcMode.SENDONLY,
     media_stream_constraints={"video": False, "audio": True},
     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
@@ -152,7 +153,9 @@ else:
 
 # Stream status
 is_streaming = bool(ctx.state.playing)
-if is_streaming:
+if not has_gpu:
+    st.warning("The live streaming controls are disabled because no GPU is available.")
+elif is_streaming:
     st_autorefresh(interval=2000, key="audio-refresh")
     st.success("Microphone active — speak in Tamil.")
     if st.session_state.last_stream_state is not True:

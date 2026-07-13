@@ -179,12 +179,14 @@ def run_ai_analysis(english_text, worker, screenshot_file, progress_bar):
         try:
             ocr_instance = get_ocr_model()
             if ocr_instance:
-                screenshot_text = extract_text_from_image(ocr_instance, screenshot_file.getvalue())
-                if screenshot_text:
-                    with st.expander("Extracted Screenshot Text"):
-                        st.text(screenshot_text)
-                else:
-                    st.warning("Could not extract any text from the uploaded screenshot.")
+                screenshot_bytes = screenshot_file.getvalue()
+                if screenshot_bytes:
+                    screenshot_text = extract_text_from_image(ocr_instance, screenshot_bytes)
+                    if screenshot_text:
+                        with st.expander("Extracted Screenshot Text"):
+                            st.text(screenshot_text)
+                    else:
+                        st.warning("Could not extract any text from the uploaded screenshot.")
                 
                 # Unload OCR model to free VRAM before running the local LLM
                 global ocr_model
@@ -196,18 +198,20 @@ def run_ai_analysis(english_text, worker, screenshot_file, progress_bar):
                     st.info("Unloaded OCR model to free VRAM.")
         except Exception as e:
             st.error(f"An error occurred during screenshot processing: {e}")
-    # --- Ollama Analysis ---
-    progress_bar.progress(80, text="Categorizing issue with local AI...")
-    with st.container(border=True):
-        text_model_device = get_ollama_device_info('phi3')
-        st.caption(f"Local AI Model: `phi3` on **{text_model_device}** | OCR Engine: `EasyOCR`")
+            return # Stop if OCR fails
 
-        category, fix = categorize_and_suggest_fix(english_text, worker, screenshot_text=screenshot_text, model_name=worker.model_name)
-        if category != "Error":
-            st.markdown("##### Issue Category")
-            st.info(category)
-            st.markdown("##### Suggested Next Step")
-            st.success(fix)
+    # --- Ollama Analysis ---
+    if OLLAMA_AVAILABLE:
+        progress_bar.progress(80, text="Categorizing issue with local AI...")
+        with st.container(border=True):
+            text_model_device = get_ollama_device_info('phi3')
+            st.caption(f"Local AI Model: `phi3` on **{text_model_device}** | OCR Engine: `EasyOCR`")
+            category, fix = categorize_and_suggest_fix(english_text, worker, screenshot_text=screenshot_text, model_name=worker.model_name)
+            if category != "Error":
+                st.markdown("##### Issue Category")
+                st.info(category)
+                st.markdown("##### Suggested Next Step")
+                st.success(fix)
 
 st.set_page_config(page_title="Speech Analyser", layout="wide")
 

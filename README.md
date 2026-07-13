@@ -24,6 +24,36 @@ The application uses a combination of technologies:
 -   **AI Analysis**: `Ollama` serves local language models (e.g., Llama 3, Phi-3) for summarization.
 -   **Data Persistence**: Analysis history is stored in a local `history.json` file, and model configurations are saved in `config.json`.
 
+```mermaid
+graph TD
+    subgraph "User`s Browser"
+        A[Frontend <br> (HTML/JS/Bootstrap)]
+    end
+
+    subgraph "Backend Server"
+        B[Flask App <br> (app.py)]
+        
+        subgraph "AI/ML Models"
+            C[EasyOCR <br> (Image to Text)]
+            D[Whisper <br> (Audio to Text)]
+            E[Ollama <br> (LLM/SLM for Summary)]
+        end
+
+        subgraph "Data Storage"
+            F[config.json <br> (Settings)]
+            G[history.json <br> (Audit Trail)]
+        end
+    end
+
+    A -- "File Uploads & API Requests" --> B
+    B -- "Process Image" --> C
+    B -- "Transcribe Audio" --> D
+    B -- "Generate Summary" --> E
+    B -- "Read/Write Settings" --> F
+    B -- "Read/Write History" --> G
+    B -- "Serves UI & Streams Results" --> A
+```
+
 ##  Prerequisites
 
 ### Hardware

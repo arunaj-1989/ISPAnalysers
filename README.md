@@ -1,29 +1,34 @@
-# ISP Analysers
+# Interjet Support Analyser
 
-This is a Streamlit web application designed for analyzing ISP data. It integrates powerful AI models to extract and process information from various sources.
+This is a web application designed for analyzing ISP customer support interactions. It integrates powerful AI models to extract and process information from audio calls and screenshots, providing a comprehensive summary and audit trail.
 
 ## ✨ Features
 
--   **🤖 AI-Powered Analysis**: Uses a local Large Language Model (Ollama with `phi3`) to automatically categorize issues and suggest next steps.
--   **🎤 Audio Transcription**: Transcribes speech from audio files into text using `openai-whisper`.
--   **🖼️ Image-to-Text**: Extracts text from images (like screenshots of router errors or payment details) using `EasyOCR`.
--   **⚙️ GPU Accelerated**: Leverages NVIDIA GPUs via CUDA for fast and efficient audio transcription (Whisper) and text extraction (EasyOCR).
+-   **Modern Web UI**: A responsive frontend built with Flask and Bootstrap, featuring a dark/light theme switcher.
+-   **🤖 Configurable AI Analysis**: Uses local Large Language Models via Ollama to automatically categorize issues and suggest next steps. The model used for analysis can be configured in the settings.
+-   **🎤 Audio Transcription**: Transcribes speech from audio files into text using `openai-whisper`, with selectable model sizes for balancing speed and accuracy.
+-   **🖼️ Image-to-Text (OCR)**: Extracts text from images (like payment screenshots) using `EasyOCR`.
+-   **⚙️ GPU Accelerated**: Leverages NVIDIA GPUs via CUDA for fast and efficient AI processing.
+-   **📊 Interactive Dashboard**: Review, search, sort, and filter the entire analysis history. Includes an audit-friendly table view with a CSV export option.
+-   **🔧 Centralized Settings**: A dedicated page to configure default AI models and monitor real-time hardware utilization (GPU, CPU, RAM, Storage).
+-   **🚀 Real-time Progress**: The analysis workflow provides live progress updates using Server-Sent Events (SSE).
 
 ## Architecture Overview
 
 The application uses a combination of technologies:
 
--   **Frontend**: `Streamlit` for the user interface.
--   **Speech-to-Text**: `openai-whisper` runs on the GPU for fast transcription and translation.
--   **Text Extraction**: `EasyOCR` handles text extraction from images.
--   **AI Analysis**: `Ollama` serves a local language model (`phi3`) for text analysis.
--   **Backend Logic**: A persistent background worker (`DecodeWorker`) processes audio independently of UI refreshes.
+-   **Backend**: A `Flask` server written in Python handles file uploads, AI processing, and API endpoints.
+-   **Frontend**: A custom single-page interface built with `HTML`, `JavaScript`, and `Bootstrap`.
+-   **Speech-to-Text**: `openai-whisper` for audio transcription.
+-   **Text Extraction (OCR)**: `EasyOCR` for image-to-text conversion.
+-   **AI Analysis**: `Ollama` serves local language models (e.g., Llama 3, Phi-3) for summarization.
+-   **Data Persistence**: Analysis history is stored in a local `history.json` file, and model configurations are saved in `config.json`.
 
 ##  Prerequisites
 
 ### Hardware
 
--   **Server**: A server running a Linux distribution (Ubuntu is recommended).
+-   **Server**: A server running a Linux or Windows distribution.
 -   **GPU**: An NVIDIA GPU with CUDA support is **required** for optimal performance.
 
 ### Software
@@ -35,72 +40,60 @@ The application uses a combination of technologies:
 
 ---
 
-## 🚀 Installation Guide
+## 🚀 Local Installation & Setup
 
-### For Linux (Ubuntu)
-
-1.  **Clone the Repository**: Get the project files onto your server.
-
+1.  **Clone the Repository**:
     ```bash
-    # Replace with your repository's URL
     git clone <your-repository-url>
-    cd <repository-directory>
+    cd ISPAnalysers
     ```
 
-2.  **Run the Orchestration Script**: This single script handles all dependencies, Python environment setup, AI model downloads, and launches the application.
-
+2.  **Create a Virtual Environment**:
     ```bash
-    chmod +x orchestration.sh
-    ./orchestration.sh
-    ```
-    The script will guide you if any dependencies are missing, set up everything required, and start the application server.
-
-### For Windows
-
-1.  **Clone the Repository**: Get the project files onto your machine.
-2.  **Set PowerShell Execution Policy**: By default, Windows may prevent you from running local PowerShell scripts. To fix this, open a PowerShell terminal and run the following command once:
-
-    ```powershell
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+    python -m venv .venv
     ```
 
-3.  **Run the Orchestration Script**: In the same PowerShell terminal, run the orchestration script. It will check for dependencies, set up the environment, download all necessary models, and launch the application.
+3.  **Activate the Environment**:
+    -   **Windows**: `.\.venv\Scripts\activate`
+    -   **Linux/macOS**: `source .venv/bin/activate`
 
-    ```powershell
-    .\orchestration.ps1
+4.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
     ```
+    *(Note: You will need to create a `requirements.txt` file containing libraries like `flask`, `torch`, `easyocr`, `openai-whisper`, `ollama`, `psutil`, etc.)*
 
-Your application will be accessible in a web browser at `http://<your-server-ip>:8501`.
-
-**Note**: You may need to configure your server's firewall to allow incoming traffic on port `8501`. For Ubuntu's `ufw`, the command would be `sudo ufw allow 8501`.
+5.  **Run the Application**:
+    ```bash
+    python app.py
+    ```
+    The application will be accessible at `http://127.0.0.1:5000`.
 
 ---
 
 ## 🔌 Using the API
 
-Beyond the Streamlit user interface, the application exposes a REST API endpoint for programmatic analysis. This allows you to integrate the ISP analysis capabilities into other systems or scripts.
+The application exposes a REST API endpoint for programmatic analysis, which streams progress and results via Server-Sent Events (SSE).
 
-The primary endpoint is `/analyze`, which accepts `multipart/form-data` POST requests.
-
-**Endpoint**: `POST /analyze`
+**Endpoint**: `POST /api/process`
 **Port**: `5000` (default for Flask)
 
 ### Request Body
 
-You must provide at least one audio file. You can optionally include one or more image files for evidence analysis.
+You must provide at least one file (`audio` or `screenshot`). You can also specify which AI models to use.
 
--   `audio`: The customer call audio file (e.g., `.mp3`, `.wav`, `.m4a`).
--   `image`: An image file for evidence (e.g., a screenshot of router lights or a payment confirmation). You can provide multiple `image` parts in a single request.
+-   `audio` (optional): The customer call audio file (e.g., `.mp3`, `.wav`).
+-   `screenshot` (optional): An image file for evidence (e.g., a payment confirmation).
+-   `model` (optional): The name of the Whisper model to use (e.g., `base`, `small`).
+-   `agent_model` (optional): The name of the Ollama agent model to use (e.g., `llama3`, `phi3:mini`).
 
 ### Example API Call with `curl`
 
-This example sends one audio file and two image files for analysis.
-
+This example sends an audio file and a screenshot for analysis.
 ```bash
-curl -X POST http://<your-server-ip>:5000/analyze \
-  -F "audio=@/path/to/customer_call.mp3" \
-  -F "image=@/path/to/router_lights.jpg" \
-  -F "image=@/path/to/payment_screenshot.png"
+curl -N -X POST http://127.0.0.1:5000/api/process \
+  -F "audio=@/path/to/renewal.wav" \
+  -F "screenshot=@/path/to/payment.png"
 ```
 
 ### Example API Call with Python

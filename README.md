@@ -27,21 +27,21 @@ The application uses a combination of technologies:
 ```mermaid
 graph TD
     subgraph "User`s Browser"
-        A[Frontend <br> (HTML/JS/Bootstrap)]
+        A["Frontend <br> (HTML/JS/Bootstrap)"]
     end
 
     subgraph "Backend Server"
-        B[Flask App <br> (app.py)]
+        B["Flask App <br> (app.py)"]
         
         subgraph "AI/ML Models"
-            C[EasyOCR <br> (Image to Text)]
-            D[Whisper <br> (Audio to Text)]
-            E[Ollama <br> (LLM/SLM for Summary)]
+            C["EasyOCR <br> (Image to Text)"]
+            D["Whisper <br> (Audio to Text)"]
+            E["Ollama <br> (LLM/SLM for Summary)"]
         end
 
         subgraph "Data Storage"
-            F[config.json <br> (Settings)]
-            G[history.json <br> (Audit Trail)]
+            F["config.json <br> (Settings)"]
+            G["history.json <br> (Audit Trail)"]
         end
     end
 

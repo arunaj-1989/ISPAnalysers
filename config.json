@@ -1,0 +1,4 @@
+{
+    "default_agent_model": "llama3",
+    "default_whisper": "small"
+}

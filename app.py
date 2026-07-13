@@ -13,6 +13,7 @@ import psutil
 # Get the absolute path of the directory where this script is located
 project_root = os.path.dirname(os.path.abspath(__file__))
 
+
 app = Flask(
     __name__,
     template_folder=project_root
@@ -22,6 +23,7 @@ CORS(app)
 # --- Configuration & Model Loading ---
 UPLOAD_FOLDER = 'uploads'
 HISTORY_FILE = 'history.json'
+CONFIG_FILE = 'config.json'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -64,6 +66,30 @@ ocr_reader = easyocr.Reader(['en'], gpu=(DEVICE == 'cuda'))
 
 print("INFO: Flask app and models loaded successfully.")
 
+# --- Config Management ---
+def load_app_config():
+    """Loads the application configuration from JSON file."""
+    if not os.path.exists(CONFIG_FILE):
+        # Default config if file doesn't exist
+        return {
+            "default_agent_model": "llama3",
+            "default_whisper": "base"
+        }
+    try:
+        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        # Return default on error
+        return {
+            "default_agent_model": "llama3",
+            "default_whisper": "base"
+        }
+
+def save_app_config(data):
+    """Saves the application configuration to a JSON file."""
+    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4)
+
 # --- History Management ---
 def load_history():
     """Loads the analysis history from the JSON file."""
@@ -103,6 +129,48 @@ def index():
     """Renders the main user interface."""
     return render_template('index.html')
 
+@app.route('/api/config', methods=['GET', 'POST'])
+def app_config():
+    """Endpoint to get or set application configuration."""
+    if request.method == 'POST':
+        new_config = request.json
+        save_app_config(new_config)
+        return jsonify({"message": "Configuration saved successfully."}), 200
+    else:
+        return jsonify(load_app_config())
+
+@app.route('/api/cache-models', methods=['POST'])
+def cache_models():
+    """Streams the progress of caching the default models."""
+    def generate_cache_progress():
+        try:
+            config = load_app_config()
+            agent_model = config.get("default_agent_model", "llama3")
+            whisper_model_name = config.get("default_whisper", "base")
+
+            # 1. Pull Ollama model
+            yield f"data: {json.dumps({'status': 'in_progress', 'message': f'Pulling agent model: {agent_model}...', 'progress': 0})}\n\n"
+            for progress in ollama.pull(agent_model, stream=True):
+                percentage = 0
+                total = progress.get("total")
+                if total is not None and total > 0:
+                    percentage = round((progress.get("completed", 0) / total) * 100)
+                
+                status_message = progress.get('status')
+                if 'completed' in progress and 'total' in progress:
+                    status_message = f"Downloading: {round(progress['completed']/1e9, 2)}GB / {round(progress['total']/1e9, 2)}GB"
+
+                yield f"data: {json.dumps({'status': 'in_progress', 'message': status_message, 'progress': percentage})}\n\n"
+
+            # 2. Load Whisper model (which also downloads if not present)
+            yield f"data: {json.dumps({'status': 'in_progress', 'message': f'Loading Whisper model: {whisper_model_name}...', 'progress': 100})}\n\n"
+            get_whisper_model(whisper_model_name)
+
+            yield f"data: {json.dumps({'status': 'complete', 'message': 'Default models have been cached.'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+    return Response(generate_cache_progress(), mimetype='text/event-stream')
+
 @app.route('/api/clear-gpu-cache', methods=['POST'])
 def clear_gpu_cache():
     """Endpoint to manually clear the CUDA cache and unload models."""
@@ -127,12 +195,20 @@ def system_info():
             'free_memory': free,
         }
 
+    v_mem = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+
     return jsonify({
         'device': DEVICE,
         'gpu': gpu_info,
         'cpu': {
-            'percent': psutil.cpu_percent(interval=0.2),
-            'memory_percent': psutil.virtual_memory().percent,
+            'percent': psutil.cpu_percent(interval=None),
+        },
+        'ram': {
+            'total': v_mem.total, 'available': v_mem.available, 'percent': v_mem.percent
+        },
+        'storage': {
+            'total': disk.total, 'used': disk.used, 'percent': disk.percent
         }
     })
 
@@ -145,9 +221,10 @@ def process_files():
     if 'audio' not in request.files and 'screenshot' not in request.files:
         return jsonify({"error": "Please upload at least one file (audio or screenshot)."}), 400
 
+    app_config = load_app_config()
     # Get model name from the form, default to 'base'
-    model_name = request.form.get('model', 'base')
-    agent_model = request.form.get('agent_model', 'llama3') # Get agent model
+    model_name = request.form.get('model', app_config.get('default_whisper', 'base'))
+    agent_model = request.form.get('agent_model', app_config.get('default_agent_model', 'llama3'))
 
     screenshot_file = request.files.get('screenshot')
     audio_file = request.files.get('audio')

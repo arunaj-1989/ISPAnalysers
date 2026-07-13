@@ -1,115 +1,5 @@
 [
     {
-        "id": "job-1783932871",
-        "timestamp": "2026-07-13T14:24:31.723729",
-        "audio_file": "N/A",
-        "screenshot_file": "8339b174-a05f-4c28-af0a-81c7a87c636d.png",
-        "summary": "Here is the English summary:\n\n**Customer Name:** LAKSHMI NARAYANAN (HDFC Bank)\n\n**Issue Category:** Billing Issue / Account Deactivated\n\n**Key Information:** The customer's account was deactivated despite a recent UPI transaction payment on July 13, 2026.\n\n**Payment Amount:** \u20b92200\n\n**Payer Details:** LAKSHMI NARAYANAN (HDFC Bank)\n\n**Payee Details:** HELPDESK INDIA IT SEVICES (pkt-8870100100@okbizaxis)\n\n**UPI Transaction ID:** 126211654717\n\n**Recommended Next Step:** Escalate to billing to verify payment and reactivate the account.",
-        "transcription": "",
-        "ocr": [
-            "To INTERJET - HELPDESK Pondicherry",
-            "85,310",
-            "Completed",
-            "13 Jul 2026, 11:25am",
-            "HDFC Bank 2200",
-            "UPI transaction ID 126211654717",
-            "To: HELPDESK INDIA IT SEVICES pkt-8870100100@okbizaxis",
-            "From: LAKSHMI NARAYANAN (HDFC Bank) Google Pay alnishi InIn@okhdfcbank",
-            "Google transaction ID CICAgNibsQuObg",
-            "POwcACC@i J?I LeauetneuCT",
-            "Address unavailable Lat: ? Lon: 13/7/2026, 11.30.04 am",
-            "Pay again",
-            "Pay"
-        ]
-    },
-    {
-        "id": "job-1783934976",
-        "timestamp": "2026-07-13T14:59:36.605873",
-        "audio_file": "N/A",
-        "screenshot_file": "WhatsApp Image 2026-07-13 at 1.12.39 PM.jpeg",
-        "summary": "Here is the summary:\n\n**Customer Name:** Sri Lalitha Comfort Drive\n**Issue Category:** Billing Issue / Account Deactivated\n**Key Information:** None mentioned in the screenshot\n**Payment Date & Time:** July 13, 2026, 11:03 AM\n**Payment Amount:** 8786\n**Payer Details:** Sri Lalitha Comfort Drive (XXXXXX14II)\n**Payee Details:** HELPDESK INDIA IT SEVICES (interjet@oksbi)\n**UPI Transaction ID:** T2607131103267467683715\n**Recommended Next Step:** Escalate to billing to verify payment and reactivate the account.\n\nNote: Since there is no audio transcription provided, the analysis focuses on the screenshot details. The issue appears to be a billing-related problem with account deactivation despite a recent payment.",
-        "transcription": "",
-        "ocr": [
-            "Transaction Successful 11:03 AM on 13 Jul 2026",
-            "0",
-            "Paid to",
-            "HELPDESK INDIA IT SEVICES 8870100100-1@okbizaxis",
-            "8786",
-            "HS",
-            "Transfer Details",
-            "PhonePe Transaction ID",
-            "T2607131103267467683715",
-            "Debited from",
-            "XXXXXX14II",
-            "8786",
-            "UTR: 687365546000",
-            "Sri Lalitha Comfort Drive; Vallalar Salai, Venkata Nagar; Brindavanam, Oulgaret; Ozhukarai Taluk, Puducherry; 605013, India Lat: 11.942386 Lon: 79.818042ered by 13/7/2026, 11:05.52 am _JZI AXIS BANK UrI D ATMNs NACE"
-        ]
-    },
-    {
-        "id": "job-1783935320",
-        "timestamp": "2026-07-13T15:05:20.044880",
-        "audio_file": "N/A",
-        "screenshot_file": "WhatsApp Image 2026-07-08 at 6.31.38 PM.jpeg",
-        "summary": "Here is the summary in English:\n\n**Customer Name:** N/A\n**Issue Category:** Billing Issue / Account Deactivated\n**Key Information:** None mentioned in the provided screenshot.\n**Payment Date & Time:** May 25, 2026, 04:15 PM\n**Payment Amount:** INR 29014\n**Payer Details:** Eazypay icicibank\n**Payee Details:** Interjet (IPY26-27INV/0260)\n**UPI Transaction ID:** 260525272142181\n**Recommended Next Step:** Escalate to billing to verify payment and reactivate the account.",
-        "transcription": "",
-        "ocr": [
-            "Payment successful",
-            "Your transaction number Is 260525272142181",
-            "AMOUNT PAID",
-            "INVOICE NUMBER",
-            "INR 29014",
-            "IPY26-27INV/0260",
-            "Payment successful",
-            "{29049 Eazypay icicibank",
-            "Payment Mode",
-            "Net Banking",
-            "Location unavailable 16.07 , May 25 2026 Lat: 0.000000 26052527214218125052026160726 Lng: 0.0oo000 Monday; 25/05/2026 04:15 PM"
-        ]
-    },
-    {
-        "id": "job-1783936722",
-        "timestamp": "2026-07-13T15:28:42.008252",
-        "audio_file": "renewal.wav",
-        "screenshot_file": "WhatsApp Image 2026-07-08 at 6.31.38 PM.jpeg",
-        "summary": "**Customer Name:** N/A\n**Issue Category:** Billing Issue / Account Deactivated\n**Key Information:** None provided\n**Payment Date & Time:** May 25, 2026, 04:15 PM\n**Payment Amount:** INR 29014\n**Payer Details:** Eazypay icicibank (XXXXXX)\n**Payee Details:** interjet@oksbi\n**UPI Transaction ID:** 260525272142181\n**Recommended Next Step:** Escalate to billing to verify payment and reactivate the account.",
-        "transcription": "",
-        "ocr": [
-            "Payment successful",
-            "Your transaction number Is 260525272142181",
-            "AMOUNT PAID",
-            "INVOICE NUMBER",
-            "INR 29014",
-            "IPY26-27INV/0260",
-            "Payment successful",
-            "{29049 Eazypay icicibank",
-            "Payment Mode",
-            "Net Banking",
-            "Location unavailable 16.07 , May 25 2026 Lat: 0.000000 26052527214218125052026160726 Lng: 0.0oo000 Monday; 25/05/2026 04:15 PM"
-        ]
-    },
-    {
-        "id": "job-1783937787",
-        "timestamp": "2026-07-13T15:46:27.198739",
-        "audio_file": "renewal.wav",
-        "screenshot_file": "WhatsApp Image 2026-07-08 at 6.31.38 PM.jpeg",
-        "summary": "**Customer Name:** N/A\n**Issue Category:** Billing Issue / Account Deactivated\n**Key Information:** None mentioned in the provided text or audio\n**Payment Date & Time:** May 25, 2026, 04:15 PM\n**Payment Amount:** INR 29014\n**Payer Details:** ICICI Bank (eazypay)\n**Payee Details:** Interjet ISP (IPY26-27INV/0260)\n**UPI Transaction ID:** 260525272142181\n**Recommended Next Step:** Escalate to billing to verify payment and reactivate the account.",
-        "transcription": "",
-        "ocr": [
-            "Payment successful",
-            "Your transaction number Is 260525272142181",
-            "AMOUNT PAID",
-            "INVOICE NUMBER",
-            "INR 29014",
-            "IPY26-27INV/0260",
-            "Payment successful",
-            "{29049 Eazypay icicibank",
-            "Payment Mode",
-            "Net Banking",
-            "Location unavailable 16.07 , May 25 2026 Lat: 0.000000 26052527214218125052026160726 Lng: 0.0oo000 Monday; 25/05/2026 04:15 PM"
-        ]
-    },
-    {
         "id": "job-1783937987",
         "timestamp": "2026-07-13T15:49:47.909709",
         "audio_file": "renewal.wav",
@@ -128,6 +18,71 @@
             "Payment Mode",
             "Net Banking",
             "Location unavailable 16.07 , May 25 2026 Lat: 0.000000 26052527214218125052026160726 Lng: 0.0oo000 Monday; 25/05/2026 04:15 PM"
+        ]
+    },
+    {
+        "id": "job-1783940960",
+        "timestamp": "2026-07-13T16:39:20.378315",
+        "audio_file": "renewal.wav",
+        "screenshot_file": "WhatsApp Image 2026-07-08 at 6.31.38 PM.jpeg",
+        "summary": "**Customer Name:** Kandasierra (based on audio transcription)\n**Issue Category:** Connectivity Issue\n**Key Information:** The customer's connection is not working, and they have been experiencing this issue since March 3.\n**Payment Date & Time:** N/A (no payment-related information in the audio or screenshot)\n**Payment Amount:** N/A (no payment amount mentioned in the audio or screenshot)\n**Payer Details:** N/A (no payer details provided in the audio or screenshot)\n**Payee Details:** Interjet (mentioned as \"\u0bb5\u0bc0\u0b9f\u0bcd\u0b9f\u0bbf\u0bb2 \u0ba8\u0bbf\u0bb1\u0bcd\u0baa\u0ba4\u0bcd\u0ba4\u0bbf\u0bb1\u0bcd\u0b95\u0bc1 \u0bb5\u0bc8\u0b95\u0bbf\u0bb2\u0bcd\" in the audio transcription, which translates to \"at home\")\n**UPI Transaction ID:** N/A (no UPI transaction ID provided in the audio or screenshot)\n**Recommended Next Step:** Ask the customer to restart their router and then check if the connection is stable. If not, schedule a technician visit to investigate the issue further.",
+        "transcription": " \u0b95\u0ba3 Sierra, euchuyahu'\u0bb2\u0bcd \u0ba8\u0bc6\u0bb0\u0bbf\u0baf\u0bc1\u0b99\u0bcd\u0b95\u0bb3\u0bcd, \u0baa\u0bbe\u0bb0\u0bcd\u0b95\u0bcd\u0b95 \u0bb2\u0bc7\u0b9a pictured Council \u0b89\u0b99\u0bcd\u0b95\u0bb3\u0bcd \u0bb5\u0bc0\u0b9f\u0bcd\u0b9f\u0bbf\u0bb2 \u0ba8\u0bbf\u0bb1\u0bcd\u0baa\u0ba4\u0bcd\u0ba4\u0bbf\u0bb1\u0bcd\u0b95\u0bc1 \u0bb5\u0bc8\u0b95\u0bbf\u0bb2\u0bcd sight connection \uc0dd\uacbc d\u00e9s \u0b9a\u0bca\u0ba9\u0bcd\u0ba9\u0bbe\u0bb2\u0bcd, \u0b87\u0ba8\u0bcd\u0ba4 \u0bae\u0bc1\u0b9f\u0bbf\u0b95\u0bcd\u0b95\u0bc8\u0b9a\u0bcd\u0b9a\u0bbf \u0414\u043b\u044f\u0ba4\u0bb5\u0bbf \u0ba4\u0bb0\u0bcd\u0bae\u0bbe\u0baa\u0b95 \u0b85\u0b9f\u0bc1\u0ba4\u0bcd\u0ba4,)\u0ba9\u0bc1\u0bae\u0bcd. \u0baa\u0bbe\u0bb0\u0bcd\u0b95\u0bcd\u0b95 \u0bae\u0bbe\u0ba4\u0bbf\u0bb0\u0bbf \u0ba8\u0bae\u0bcd\u0bae\u0bc1\u0b9f\u0bbf\u0b95\u0bcd\u0b95 toy car\u3059 mechanical \ub098\uc628 \u0baa\u0b9f\u0ba8\u0bcd\u0ba4\u0bbf, 6 \u0bae\u0ba3\u0ba4\u0bcd\u0ba4\u0bbf \u0b85\u0b9f\u0bc1\u0ba4\u0bcd\u0ba4\u0bc1, \u0bae\u0bbe\u0ba4\u0bbf\u0bb0\u0bbf\u0ba9\u0bcd \u0bae\u0bca\u0ba4\u0bc1\u0bb5\u0bc1 \u0b95\u0bc8\u0baf\u0bbf\u0bb0\u0bae\u0bcd \u0ba8\u0b9f\u0bbf\u0bb5\u0bc8 \u0bb5\u0bb0\u0bc1\u0bae\u0bcd \u0b9a\u0bc6\u0ba9\u0bcd\u0bb1\u0bc1, \u0431\u0440 Siroma \u0b9a\u0bc7\u0bb1\u0bc1\u0b95\u0bbf\u0bb1 March 3 \u0b87\u0baa\u0bcd\u0baa\u0bca\u0bb4\u0bc1\u0ba4\u0bbf\u0bb2\u0bcd\u7fd2\u0bbe\u0ba4 \u0b87\u0b9f\u0b99\u0bcd\u0b95\u0bb3 \u0b9a\u0bc6\u0baf\u0bcd\u0ba4\u0b99\u0bcd\u0b95\u0bb3\u0bbeAy \u0b87\u0ba4\u0bc1 \u0ba8\u0bbf\u0ba9\u0bcdion \u0ba8\u0bbf\u0ba9\u0bcd\u0bb1\u0bc1\u0b95\u0bbf\u0bb2\u0bbe\u0bae\u0bcd. \u0ba8\u0bbf\u0bb4\u0bc1\u0ba8\u0bcd\u0ba4\u0bbf\u0bb0\u0bc1 \u0ba8\u0bc0\u0b99\u0bcd\u0b95\u0bb3\u0bc8 \u0bae\u0b9f\u0bcd\u0b9f \u0bb5\u0bc7\u0bb1\u0bbf\u0baf \u0bae\u0b9f\u0bcd\u0b9f\u0bc1\u0bae\u0bcd \u0b95\u0bc7\u0b9f\u0bcd\u0b9f\u0bc1 \u0bb5\u0bb0\u0bc1\u0b95\u0bcd\u0b95\u0bbf\u0bb1\u0bbe\u0bb3\ufffd\ufffd\u0bcd \u0b8e\u0bb2\u0bcd\u0bb2\u0bbe\u0bae\u0bcd Got it? \u0b95\u0bc8ieg\u0b95\u0bbe\u0ba9 \u0b8e\u0bb4\u0bc1\u0b95\u0bbe\u0bb0\u0bcd\u0b95\u0bb3\u0bcd \u0b87\u0bb0\u0bc1\u0b95\u0bcd\u0b95\u0bb5\u0bc1\u0bae\u0bcd,\u5a46\u0bb3\u0bbf\u0baf\u0bbe\u0b95 \u0ba8\u0b9f\u0bbf\u0b95\u0bcd\u0b95\u0bb2\u0bbe\u0bae\u0bcd \u0b87\u0bb5\u0bb1\u0bb5\u0bc1 \u0ba8\u0b9f\u0bbf\u0b95\u0bcd\u0b95\u0bb2\u0bbe\u0bae\u0bb2\u0bcd. \u0b93\u0baa\u0bcd\u0baa\u0bbf \u0ba8\u0bc7\u0bb0\u0bae\u0bcd \u0b85\u0ba9\u0bc8\u0ba4\u0bcd\u0ba4\u0bc1\u0bae\u0bcd \u0b95\u0b9f\u0bc8 minimize \u0b8f\u0bb1\u0bcd\u0bb1\u0bc1 \u0b95\u0bbe\u0b9f\u0bcd\u0b9a\u0bc1\u0bae\u0bcd \u0baa\u0bbf\u0ba9\u0bcd\u0ba9\u0bc1 \u0b85\u0ba9\u0bc8\u0ba4\u0bcd\u0ba4 \u0bb5 Quinnuffled\u0bc1\u0b95\u0bbf\u0bb1\u0e34\u0bae\u0bcd \u0baa unchanged \u0b85\u0b95\u0bcd\u0b95\u0bc8\u0baf\u0bbf\u0ba9\u0bcd \u0b8f\u0bb1\u0bcd\u0bb1\u0bc1\u0b95\u0bcd\u0b95\u0bca\u0bb3\u0bcd\u0bb3\u0bc1\u0b99\u0bcd\u0b95. \u0baa\u0bb0\u0bae\u0bcd\u0baa\u0bc1\u0b9a\u0bcd\u0b9a\u0bbf\u0ba4\u0bcd\u0ba4 icon",
+        "ocr": [
+            "Payment successful",
+            "Your transaction number Is 260525272142181",
+            "AMOUNT PAID",
+            "INVOICE NUMBER",
+            "INR 29014",
+            "IPY26-27INV/0260",
+            "Payment successful",
+            "{29049 Eazypay icicibank",
+            "Payment Mode",
+            "Net Banking",
+            "Location unavailable 16.07 , May 25 2026 Lat: 0.000000 26052527214218125052026160726 Lng: 0.0oo000 Monday; 25/05/2026 04:15 PM"
+        ]
+    },
+    {
+        "id": "job-1783941604",
+        "timestamp": "2026-07-13T16:50:04.282613",
+        "audio_file": "renewal.wav",
+        "screenshot_file": "WhatsApp Image 2026-07-08 at 6.31.38 PM.jpeg",
+        "summary": "Here is the English summary based on the provided customer interaction:\n\n**Customer Name:** N/A\n**Issue Category:** Billing Issue / Account Deactivated\n**Key Information:** The customer reported an issue with their internet connection, but it seems to be related to a billing problem.\n**Payment Date & Time:** May 25, 2026, 04:15 PM\n**Payment Amount:** INR 29014\n**Payer Details:** N/A (No payer details are provided)\n**Payee Details:** Interjet (payment to the company itself)\n**UPI Transaction ID:** T260525272142181\n**Recommended Next Step:** Escalate to billing to verify payment and reactivate the account.",
+        "transcription": " \u0bb9\u0ba3\u0bcd\u0b9f\u0bc7 denominator\ufffd\ufffd Mobile, Norman clickingtron\u2691, \u0b8f\u0ba9\u0bcd \u0bae\u0ba8\u0bcd\u0ba4\u0bbf\u0bb2\u0bcd \u0b95\u0bc8\u0baa\u0bc7\u0b9a\u0bc1\u0bb5\u0ba4\u0bb1\u0bcd\u0b95\u0bc1 \u0bb5\u0bc8\u0ba4\u0bcd\u0ba4\u0bbf\u0b95\u0bcd \u0b95\u0bbf\u0bb4\u0bc1\u0bb5\u0bbf\u0bb2\u0bcd<|mr|>astic checkbook a \u0ba8\u0bae\u0bcd \u0b85\u0bb5\u0bb0\u0bbe\u0ba3 \u0bb5\u0bc7\u0bb1\u0bc1 \u0b8e\u0ba4\u0bc8\u0456\u0432\u0bc1\u0ba4\u0bcd\u0ba4\u0bbf\u0bb0\u0bc1\u0b95\u0bcd\u0b95\u0bb5\u0bb2\u0bcd \u0b89\u0ba8\u0bcd\u0ba4\u0bc1\u0ba4\u0bc1 Porque your navel 135 with connections is over all the educated business of weaving companies, y afterarem \uc544\ub2c8\ufffd\u0bc1\u0bae\u0bcd\u0baa\u0ba8\u0bcd\u0ba4\u0bc7 \u0b89 approached regardingstruous orders and thentracked to conduct that to backstab NGOs, and thensh Typically, Y atyama victory andattackshaped \u0ba4\u0bbf\u0bb0\u0bc1\u0bae\u0bcd\u0baa\u0bb0\u0bc0\u0b85\u0ba4\u0bc1 \u0baaphinanon. \u0b87\u0b99\u0bcd\u0b95\u0bc1 \u0b87\u0ba4\u0bc8\u0b95\u0bcd \u0b95\u0bca\u0b9f\u0bc1\u0ba4\u0bcd\u0ba4\u0bbe\u0b99\u0bcd\u0b95\u0bb3\u0bcd YOUR MYS \u0b9f\u0bbe\u0b9c\u0bbe, \u0ba8\u0bbe\u0ba9\u0bcd \u0b9a\u0bc6\u0baf\u0bcd\u0ba4\u0bc1\u0b95\u0bca\u0bb3\u0bcd\u0bb3\u0bc1\u0b99\u0bcd\u0b95\u0bb3\u0bcd.",
+        "ocr": [
+            "Payment successful",
+            "Your transaction number Is 260525272142181",
+            "AMOUNT PAID",
+            "INVOICE NUMBER",
+            "INR 29014",
+            "IPY26-27INV/0260",
+            "Payment successful",
+            "{29049 Eazypay icicibank",
+            "Payment Mode",
+            "Net Banking",
+            "Location unavailable 16.07 , May 25 2026 Lat: 0.000000 26052527214218125052026160726 Lng: 0.0oo000 Monday; 25/05/2026 04:15 PM"
+        ]
+    },
+    {
+        "id": "job-1783941792",
+        "timestamp": "2026-07-13T16:53:12.721819",
+        "audio_file": "N/A",
+        "screenshot_file": "8339b174-a05f-4c28-af0a-81c7a87c636d.png",
+        "summary": "**Customer Name:** LAKSHMI NARAYANAN (HDFC Bank)\n\n**Issue Category:** Billing Issue / Account Deactivated\n\n**Key Information:** The customer is facing an issue with their INTERJET bill.\n\n**Payment Date & Time:** July 13, 2026, 11:25am\n\n**Payment Amount:** 2200\n\n**Payer Details:** LAKSHMI NARAYANAN (HDFC Bank)\n\n**Payee Details:** HELPDESK INDIA IT SEVICES (interjet@oksbi)\n\n**UPI Transaction ID:** 126211654717\n\n**Recommended Next Step:** Escalate to billing to verify payment and confirm that the account is not deactivated.",
+        "transcription": "",
+        "ocr": [
+            "To INTERJET - HELPDESK Pondicherry",
+            "85,310",
+            "Completed",
+            "13 Jul 2026, 11:25am",
+            "HDFC Bank 2200",
+            "UPI transaction ID 126211654717",
+            "To: HELPDESK INDIA IT SEVICES pkt-8870100100@okbizaxis",
+            "From: LAKSHMI NARAYANAN (HDFC Bank) Google Pay alnishi InIn@okhdfcbank",
+            "Google transaction ID CICAgNibsQuObg",
+            "POwcACC@i J?I LeauetneuCT",
+            "Address unavailable Lat: ? Lon: 13/7/2026, 11.30.04 am",
+            "Pay again",
+            "Pay"
         ]
     }
 ]

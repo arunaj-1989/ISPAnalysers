@@ -85,10 +85,12 @@ When analyzing a customer call audio file, follow these steps:
 
 ### 4.2. Payment Screenshot Analysis
 
-- **Information to look for:**
-    - **UPI Transaction ID / Reference No.**
-    - **Date and Time of payment.**
-    - **Amount Paid.**
-    - **Beneficiary Name (should be "Interjet" or similar).**
-    - **Beneficiary UPI ID (e.g., `interjet@oksbi`).**
-- **Action:** Use the Transaction ID to trace the payment in the billing system.
+- **Objective:** Extract payment details from any provided screenshot, regardless of the payment method.
+- **Common Payment Methods:** While approximately 90% of payments are via UPI, also look for evidence of Netbanking, Credit/Debit Card payments, or other digital wallets.
+- **Information to extract from OCR:**
+    - **Transaction ID:** Look for labels like "UPI Transaction ID", "Reference No.", "Transaction Number", or any long alphanumeric string that clearly identifies the payment.
+    - **Date and Time:** Find the date and time of the transaction.
+    - **Amount Paid:** Identify the numeric value of the payment. Look for keywords like "Amount Paid", "INR", "₹", or a standalone number that is clearly the transaction amount. Extract only the number (e.g., for "INR 29014", extract "29014").
+    - **Payer Details:** Identify the sender's name or account identifier (e.g., "From: LAKSHMI NARAYANAN").
+    - **Payee Details:** Confirm the payment was made to "Interjet", "HELPDESK INDIA IT SEVICES", or a known company UPI ID like `interjet@oksbi`.
+- **Action:** Use the extracted Transaction ID, Amount, and Date to trace the payment in the billing system.

@@ -142,51 +142,69 @@ def process_files():
     API endpoint to process an audio file and a screenshot.
     Streams progress updates using Server-Sent Events.
     """
-    if 'audio' not in request.files or 'screenshot' not in request.files:
-        return jsonify({"error": "Missing audio or screenshot file"}), 400
+    if 'audio' not in request.files and 'screenshot' not in request.files:
+        return jsonify({"error": "Please upload at least one file (audio or screenshot)."}), 400
 
     # Get model name from the form, default to 'base'
     model_name = request.form.get('model', 'base')
+    agent_model = request.form.get('agent_model', 'llama3') # Get agent model
 
-    screenshot_file = request.files['screenshot']
-    audio_file = request.files['audio']
+    screenshot_file = request.files.get('screenshot')
+    audio_file = request.files.get('audio')
 
     # Use unique filenames to avoid race conditions
-    audio_filename = f"{uuid.uuid4()}_{audio_file.filename}"
-    screenshot_filename = f"{uuid.uuid4()}_{screenshot_file.filename}"
-    audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_filename)
-    screenshot_path = os.path.join(app.config['UPLOAD_FOLDER'], screenshot_filename)
-    audio_file.save(audio_path)
-    screenshot_file.save(screenshot_path)
+    audio_path = None
+    screenshot_path = None
+
+    if audio_file and audio_file.filename:
+        audio_filename = f"{uuid.uuid4()}_{audio_file.filename}"
+        audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_filename)
+        audio_file.save(audio_path)
+
+    if screenshot_file and screenshot_file.filename:
+        screenshot_filename = f"{uuid.uuid4()}_{screenshot_file.filename}"
+        screenshot_path = os.path.join(app.config['UPLOAD_FOLDER'], screenshot_filename)
+        screenshot_file.save(screenshot_path)
 
     def generate_progress():
+        ocr_result = []
+        transcription_text = ""
         try:
             # 1. Process Screenshot with EasyOCR
-            yield f"data: {json.dumps({'step': 'ocr', 'status': 'in_progress', 'message': 'Extracting text from image with EasyOCR...'})}\n\n"
-            ocr_result = ocr_reader.readtext(screenshot_path, detail=0, paragraph=True)
-            yield f"data: {json.dumps({'step': 'ocr', 'status': 'complete', 'result': ocr_result})}\n\n"
+            if screenshot_path:
+                yield f"data: {json.dumps({'step': 'ocr', 'status': 'in_progress', 'message': 'Extracting text from image with EasyOCR...'})}\n\n"
+                ocr_result = ocr_reader.readtext(screenshot_path, detail=0, paragraph=True)
+                yield f"data: {json.dumps({'step': 'ocr', 'status': 'complete', 'result': ocr_result})}\n\n"
+            else:
+                yield f"data: {json.dumps({'step': 'ocr', 'status': 'skipped'})}\n\n"
 
             # 2. Process Audio with Whisper
-            yield f"data: {json.dumps({'step': 'transcribe', 'status': 'in_progress', 'message': f'Transcribing with Whisper ({model_name})...'})}\n\n"
-            whisper_model = get_whisper_model(model_name)
-            audio_transcription = whisper_model.transcribe(audio_path, fp16=(DEVICE == 'cuda'))
-            transcription_text = audio_transcription['text']
-            yield f"data: {json.dumps({'step': 'transcribe', 'status': 'complete', 'result': transcription_text})}\n\n"
+            if audio_path:
+                yield f"data: {json.dumps({'step': 'transcribe', 'status': 'in_progress', 'message': f'Transcribing with Whisper ({model_name})...'})}\n\n"
+                whisper_model = get_whisper_model(model_name)
+                audio_transcription = whisper_model.transcribe(audio_path, fp16=(DEVICE == 'cuda'))
+                transcription_text = audio_transcription['text']
+                yield f"data: {json.dumps({'step': 'transcribe', 'status': 'complete', 'result': transcription_text})}\n\n"
+            else:
+                yield f"data: {json.dumps({'step': 'transcribe', 'status': 'skipped'})}\n\n"
 
             # 3. Process with Ollama
-            yield f"data: {json.dumps({'step': 'summarize', 'status': 'in_progress', 'message': 'Generating AI summary with Ollama...'})}\n\n"
+            yield f"data: {json.dumps({'step': 'summarize', 'status': 'in_progress', 'message': f'Generating AI summary with {agent_model}...'})}\n\n"
             analysis_request = f"""
 **Customer Call Analysis Request**
 
 **Audio Transcription:**
-{transcription_text}
+{transcription_text if transcription_text else "N/A"}
 
 **Text Extracted from Screenshot:**
-{' '.join(ocr_result)}
+{' '.join(ocr_result) if ocr_result else "N/A"}
 """
             llm_prompt = f"""
 You are an AI assistant for Interjet, a high-speed internet provider.
 Your task is to analyze the provided customer interaction and generate a summary based on the company's standard operating procedures.
+If only a screenshot is provided, focus on analyzing the details from the image.
+If only audio is provided, focus on the transcription.
+If both are provided, use both as context.
 
 Follow these guidelines strictly:
 {SKILL_GUIDELINES}
@@ -196,8 +214,29 @@ Here is the interaction data to analyze:
 {analysis_request}
 ---
 
-Please provide the English summary now."""
-            llm_response = ollama.chat(model='llama3', messages=[{'role': 'user', 'content': llm_prompt}])
+Please provide the English summary now. Structure your response using the following markdown format, ensuring each field is on a new line:
+**Customer Name:** [Customer's name from audio or screenshot, or N/A]
+**Issue Category:** [The categorized issue]
+**Key Information:** [Other key details from the call or text, NOT related to the payment]
+**Payment Date & Time:** [Date and Time from screenshot, e.g., "July 13, 2026, 11:03 AM", or N/A]
+**Payment Amount:** [Amount from screenshot as a number only, e.g., 599, or N/A]
+**Payer Details:** [Payer name or UPI ID from screenshot, or N/A]
+**Payee Details:** [Payee name or UPI ID from screenshot, or N/A]
+**UPI Transaction ID:** [Transaction ID from screenshot, or N/A]
+**Recommended Next Step:** [The recommended next step based on the SOPs]
+
+Example:
+**Customer Name:** Sri Lalitha
+**Issue Category:** Billing Issue / Account Deactivated
+**Key Information:** Account was deactivated despite a recent payment.
+**Payment Date & Time:** July 13, 2026, 11:03 AM
+**Payment Amount:** 599
+**Payer Details:** Sri Lalitha (XXXXXX14II)
+**Payee Details:** HELPDESK INDIA IT SEVICES (interjet@oksbi)
+**UPI Transaction ID:** T2607131103267467683715
+**Recommended Next Step:** Escalate to billing to verify payment and reactivate the account.
+"""
+            llm_response = ollama.chat(model=agent_model, messages=[{'role': 'user', 'content': llm_prompt}])
             summary_text = llm_response['message']['content']
             yield f"data: {json.dumps({'step': 'summarize', 'status': 'complete', 'result': summary_text})}\n\n"
 
@@ -224,10 +263,18 @@ Please provide the English summary now."""
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
         finally:
             # 5. Clean up uploaded files
-            os.remove(audio_path)
-            os.remove(screenshot_path)
+            if audio_path and os.path.exists(audio_path):
+                os.remove(audio_path)
+            if screenshot_path and os.path.exists(screenshot_path):
+                os.remove(screenshot_path)
+            
+            # 6. Clear GPU cache and unload models after analysis
+            if DEVICE == 'cuda':
+                yield f"data: {json.dumps({'step': 'cleanup', 'status': 'in_progress', 'message': 'GPU cache cleared and all models unloaded.'})}\n\n"
+                loaded_models.clear()
+                torch.cuda.empty_cache()
 
     return Response(generate_progress(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)

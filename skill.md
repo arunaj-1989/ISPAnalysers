@@ -16,12 +16,13 @@
 ### 3.1. Call Analysis Workflow
 
 When analyzing a customer call audio file, follow these steps:
-1.  **Transcribe and Translate:** Transcribe the Tamil audio to text and then translate it to English.
-2.  **Identify the Customer's Issue:** Based on the English translation, identify the main reason for the call.
-3.  **Categorize the Issue:** Assign one of the categories from the "Issue Categories" section below.
-4.  **Extract Key Information:** Pull out specific details like account numbers, plan names, mentioned dates, etc.
-5.  **Analyze Supplementary Evidence:** If screenshots are provided, analyze them according to the guidelines in the "Evidence Analysis" section.
-6.  **Generate a Summary:** Create a concise summary in English that includes:
+1.  **Analyze Input:** The system can receive an audio file, one or more images, or a combination of both.
+    *   **If audio is present:** Transcribe the Tamil audio to text and then translate it to English. Identify the customer's issue from the text.
+    *   **If only images are present:** The primary issue is likely related to the content of the images (e.g., a billing problem if it's a payment screenshot).
+2.  **Categorize the Issue:** Assign one of the categories from the "Issue Categories" section below. If no audio is present, the category will be inferred from the image analysis (e.g., "Billing Issue" for a payment screenshot).
+3.  **Extract Key Information:** From the audio transcript (if available), pull out specific details like account numbers, plan names, mentioned dates, etc.
+4.  **Analyze Supplementary Evidence:** If screenshots are provided, analyze them according to the guidelines in the "Evidence Analysis" section. This is the primary source of information if no audio is provided.
+5.  **Generate a Summary:** Create a concise summary in English that includes:
     *   Customer's name (if mentioned).
     *   The categorized issue.
     *   Key information extracted.
@@ -85,8 +86,9 @@ When analyzing a customer call audio file, follow these steps:
 ### 4.2. Payment Screenshot Analysis
 
 - **Information to look for:**
-    - **Transaction ID / Reference Number.**
+    - **UPI Transaction ID / Reference No.**
     - **Date and Time of payment.**
     - **Amount Paid.**
     - **Beneficiary Name (should be "Interjet" or similar).**
+    - **Beneficiary UPI ID (e.g., `interjet@oksbi`).**
 - **Action:** Use the Transaction ID to trace the payment in the billing system.

@@ -282,7 +282,7 @@
                                         <div class="row mb-4">
                                             <div class="col">
                                                 <label for="audio" class="form-label fw-semibold small"><i class="bi bi-mic-fill me-2"></i>Customer Call Audio</label>
-                                                <input type="file" class="form-control form-control-sm" id="audio" name="audio" accept="audio/*" required>
+                                                <input type="file" class="form-control form-control-sm" id="audio" name="audio" accept="audio/*">
                                             </div>
                                             <div class="col">
                                                 <label for="screenshot" class="form-label fw-semibold small"><i class="bi bi-image me-2"></i>Supporting Screenshot</label>
@@ -303,12 +303,21 @@
                                 <div class="card-header"><h5 class="mb-0"><i class="bi bi-gear-fill me-2"></i>Settings & Controls</h5></div>
                                 <div class="card-body p-4">
                                     <div class="vstack gap-3">
+                                        <div>
+                                            <label for="agent-model" class="form-label small">Agent Model</label>
+                                            <select class="form-select form-select-sm" id="agent-model" name="agent_model" form="upload-form">
+                                                <option value="phi3:mini">Phi-3 Mini (Fast, ~4GB VRAM)</option>
+                                                <option value="llama3" selected>Llama 3 (Default, ~8GB VRAM)</option>
+                                                <option value="mistral">Mistral (Alternative, ~8GB VRAM)</option>
+                                                <option value="codellama:13b">CodeLlama 13B (Large, ~13GB VRAM)</option>
+                                            </select>
+                                        </div>
                                         <div class="row g-2 align-items-end">
                                             <div class="col-8">
                                                 <label for="whisper-model" class="form-label small">Whisper Model</label>
                                                 <select class="form-select form-select-sm" id="whisper-model" name="model" form="upload-form">
                                                     <option value="base" selected>Base (Fastest, ~1GB VRAM)</option>
-                                                    <option value="small">Small (~2GB VRAM)</option>
+                                                    <option value="small">Small (Balanced, ~2GB VRAM)</option>
                                                     <option value="medium">Medium (~5GB VRAM)</option>
                                                 </select>
                                             </div>
@@ -331,7 +340,7 @@
                     <div class="card-body p-4">
                         <div class="row text-center">
                             <!-- Step 1: OCR -->
-                            <div id="step-ocr" class="col-md-4 workflow-step">
+                            <div id="step-ocr" class="col-md-3 workflow-step">
                                 <div class="workflow-icon-wrapper mx-auto mb-2">
                                     <i class="bi bi-card-image fs-4"></i>
                                     <span class="status-badge"></span>
@@ -343,7 +352,7 @@
                                 <div class="workflow-connector"></div>
                             </div>
                             <!-- Step 2: Transcribe -->
-                            <div id="step-transcribe" class="col-md-4 workflow-step">
+                            <div id="step-transcribe" class="col-md-3 workflow-step">
                                 <div class="workflow-icon-wrapper mx-auto mb-2">
                                     <i class="bi bi-mic fs-4"></i>
                                     <span class="status-badge"></span>
@@ -355,12 +364,24 @@
                                 <div class="workflow-connector"></div>
                             </div>
                             <!-- Step 3: Summarize -->
-                            <div id="step-summarize" class="col-md-4 workflow-step">
+                            <div id="step-summarize" class="col-md-3 workflow-step">
                                 <div class="workflow-icon-wrapper mx-auto mb-2">
                                     <i class="bi bi-lightbulb fs-4"></i>
                                     <span class="status-badge"></span>
                                 </div>
                                 <p class="mb-1 fw-bold">Generating AI Summary</p>
+                                <div class="progress" style="height: 5px;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-primary"></div>
+                                </div>
+                                <div class="workflow-connector"></div>
+                            </div>
+                            <!-- Step 4: Cleanup -->
+                            <div id="step-cleanup" class="col-md-3 workflow-step">
+                                <div class="workflow-icon-wrapper mx-auto mb-2">
+                                    <i class="bi bi-recycle fs-4"></i>
+                                    <span class="status-badge"></span>
+                                </div>
+                                <p class="mb-1 fw-bold">Cleaning Up</p>
                                 <div class="progress" style="height: 5px;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                                     <div class="progress-bar bg-primary"></div>
                                 </div>
@@ -370,7 +391,7 @@
                 </div>
 
                 <div id="error" class="alert alert-danger" style="display: none;"></div>
-
+<br>
                 <div id="result" class="card card-glass result-card" style="display: none;">
                     <div class="card-header">
                         <h5 class="mb-0">Analysis Results</h5>
@@ -416,18 +437,41 @@
             <main class="col-12 col-md-9 ms-md-auto col-lg-10 ms-lg-auto px-md-4 main-content" id="dashboard-view" style="display: none;">
                 <header class="text-center mb-4">
                     <h1 class="display-6">Analysis History</h1>
-                    <div class="d-flex justify-content-center align-items-center">
-                        <p class="text-white-50 me-3 mb-0">Review previously processed interactions.</p>
-                        <div class="d-flex align-items-center">
-                            <label for="history-date-filter" class="form-label small me-2 mb-0 text-nowrap">Filter by Date:</label>
-                            <input type="date" id="history-date-filter" class="form-control form-control-sm" style="width: 150px;">
-                        </div>
-                    </div>
+                    <p class="text-white-50 mb-0">Review previously processed interactions.</p>
                 </header>
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="btn-group" role="group" aria-label="View toggle">
+                        <input type="radio" class="btn-check" name="view-toggle" id="list-view-btn" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-secondary" for="list-view-btn"><i class="bi bi-list-ul me-1"></i> List View</label>
+
+                        <input type="radio" class="btn-check" name="view-toggle" id="table-view-btn" autocomplete="off" checked>
+                        <label class="btn btn-sm btn-outline-secondary" for="table-view-btn"><i class="bi bi-table me-1"></i> Audit Table</label>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="search" id="history-search-filter" class="form-control form-control-sm" placeholder="Search history..." style="max-width: 200px;">
+                        <button class="btn btn-sm btn-outline-success" id="export-csv-btn" style="display: none;"><i class="bi bi-download me-1"></i>Export CSV</button>
+                        <label for="history-date-filter" class="form-label small me-2 mb-0 text-nowrap">Filter by Date:</label>
+                        <input type="date" id="history-date-filter" class="form-control form-control-sm" style="width: 150px;">
+                    </div>
+                </div>
+
                 <div id="dashboard-loading" class="text-center py-5">
                     <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
                 </div>
-                <div class="accordion" id="history-accordion">
+
+                <div id="list-view-container">
+                    <div class="accordion" id="history-accordion">
+                    </div>
+                </div>
+
+                <div id="table-view-container" style="display: none;">
+                    <div class="table-responsive card-glass p-2 rounded">
+                        <table class="table table-sm table-hover" id="history-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </main>
         </div>
@@ -585,13 +629,25 @@
         document.getElementById('upload-form').addEventListener('submit', async function(event) {
             event.preventDefault();
 
+            const audioFile = document.querySelector('#audio').files[0];
+            const screenshotFile = document.querySelector('#screenshot').files[0];
+
+            if (!audioFile && !screenshotFile) {
+                showToast('Input Required', 'Please upload an audio file or a screenshot to start the analysis.', 'danger');
+                return;
+            }
+
             const form = event.target;
             const formData = new FormData();
 
-            // Manually append files in the desired processing order
-            formData.append('screenshot', form.querySelector('#screenshot').files[0]);
-            formData.append('audio', form.querySelector('#audio').files[0]);
+            if (screenshotFile) {
+                formData.append('screenshot', screenshotFile);
+            }
+            if (audioFile) {
+                formData.append('audio', audioFile);
+            }
             formData.append('model', document.querySelector('#whisper-model').value);
+            formData.append('agent_model', document.querySelector('#agent-model').value);
             
             const resultDiv = document.getElementById('result');
             const errorDiv = document.getElementById('error');
@@ -625,6 +681,7 @@
                 ocr: getStep('step-ocr'),
                 transcribe: getStep('step-transcribe'),
                 summarize: getStep('step-summarize'),
+                cleanup: getStep('step-cleanup'),
             };
 
             // Reset workflow UI
@@ -682,8 +739,10 @@
                             if (data.error) throw new Error(data.error);
                             if (data.step === 'done') break;
 
-                            const { step, status, result } = data;
+                            const { step, status, result, message } = data;
                             const stepUI = steps[step];
+
+                            if (!stepUI) continue; // Ignore unknown steps
 
                             if (status === 'in_progress') {
                                 stepUI.badge.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"></div>';
@@ -709,6 +768,11 @@
                                 stepUI.el.classList.remove('active');
                                 stepUI.el.classList.add('complete');
                                 results[step] = result;
+                            } else if (status === 'skipped') {
+                                if (stepUI.interval) clearInterval(stepUI.interval);
+                                stepUI.progressBar.style.width = '100%';
+                                stepUI.badge.innerHTML = '<i class="bi bi-skip-forward-fill text-muted"></i>';
+                                stepUI.el.classList.add('complete');
                             }
                         } catch (e) {
                             console.error("Failed to parse JSON from stream:", line, e);
@@ -847,12 +911,33 @@
             document.getElementById('history-date-filter').addEventListener('change', (e) => {
                 filterHistoryByDate(e.target.value);
             });
+
+            // Add event listener for the search filter
+            document.getElementById('history-search-filter').addEventListener('input', (e) => {
+                filterHistoryByKeyword(e.target.value);
+            });
+
+            // View toggle buttons
+            document.getElementById('list-view-btn').addEventListener('change', () => {
+                document.getElementById('list-view-container').style.display = 'block';
+                document.getElementById('table-view-container').style.display = 'none';
+                document.getElementById('export-csv-btn').style.display = 'none';
+            });
+            document.getElementById('table-view-btn').addEventListener('change', () => {
+                document.getElementById('list-view-container').style.display = 'none';
+                document.getElementById('table-view-container').style.display = 'block';
+                document.getElementById('export-csv-btn').style.display = 'inline-block';
+            });
         }
 
         async function loadHistory() {
+            document.getElementById('export-csv-btn').style.display = 'none'; // Hide on load
             const accordionContainer = document.getElementById('history-accordion');
+            const tableBody = document.querySelector('#history-table tbody');
             const loadingIndicator = document.getElementById('dashboard-loading');
+            
             accordionContainer.innerHTML = '';
+            tableBody.innerHTML = '';
             loadingIndicator.style.display = 'block';
 
             try {
@@ -862,7 +947,11 @@
 
                 if (history.length === 0) {
                     accordionContainer.innerHTML = '<p class="text-center text-muted">No analysis history found.</p>';
+                    document.getElementById('list-view-container').style.display = 'block';
+                    document.getElementById('table-view-container').style.display = 'none';
+                    document.getElementById('table-view-btn').disabled = true;
                 } else {
+                    createHistoryTable(history);
                     history.forEach(item => {
                         const itemHtml = createHistoryItem(item);
                         accordionContainer.insertAdjacentHTML('beforeend', itemHtml);
@@ -871,6 +960,16 @@
                     document.querySelectorAll('.delete-history-btn').forEach(button => {
                         button.addEventListener('click', deleteHistoryItem);
                     });
+                    document.getElementById('table-view-btn').disabled = false;
+                    // Sync button visibility with the current view
+                    if (document.getElementById('table-view-btn').checked) {
+                        document.getElementById('list-view-container').style.display = 'none';
+                        document.getElementById('table-view-container').style.display = 'block';
+                        document.getElementById('export-csv-btn').style.display = 'inline-block';
+                    } else {
+                        document.getElementById('list-view-container').style.display = 'block';
+                        document.getElementById('table-view-container').style.display = 'none';
+                    }
                 }
             } catch (error) {
                 console.error('Error loading history:', error);
@@ -880,24 +979,43 @@
             }
         }
 
-        function filterHistoryByDate(filterDate) {
-            const items = document.querySelectorAll('#history-accordion .accordion-item');
-            let visibleCount = 0;
-            items.forEach(item => {
+        function applyHistoryFilters() {
+            const dateFilter = document.getElementById('history-date-filter').value;
+            const keywordFilter = document.getElementById('history-search-filter').value.toLowerCase();
+
+            // Filter accordion view
+            const accordionItems = document.querySelectorAll('#history-accordion .accordion-item');
+            accordionItems.forEach(item => {
                 const itemTimestamp = item.getAttribute('data-timestamp');
-                if (!filterDate) { // If filter is cleared, show all
-                    item.style.display = 'block';
-                    visibleCount++;
-                    return;
-                }
-                const itemDate = new Date(itemTimestamp).toISOString().split('T')[0];
-                if (itemDate === filterDate) {
-                    item.style.display = 'block';
-                    visibleCount++;
-                } else {
-                    item.style.display = 'none';
-                }
+                const itemDate = itemTimestamp ? new Date(itemTimestamp).toISOString().split('T')[0] : '';
+                const itemText = item.textContent.toLowerCase();
+
+                const dateMatch = !dateFilter || (itemDate === dateFilter);
+                const keywordMatch = !keywordFilter || itemText.includes(keywordFilter);
+
+                item.style.display = (dateMatch && keywordMatch) ? 'block' : 'none';
             });
+
+            // Filter table view
+            const tableRows = document.querySelectorAll('#history-table tbody tr');
+            tableRows.forEach(row => {
+                const itemTimestamp = row.getAttribute('data-timestamp');
+                const itemDate = itemTimestamp ? new Date(itemTimestamp).toISOString().split('T')[0] : '';
+                const itemText = row.textContent.toLowerCase();
+
+                const dateMatch = !dateFilter || (itemDate === dateFilter);
+                const keywordMatch = !keywordFilter || itemText.includes(keywordFilter);
+
+                row.style.display = (dateMatch && keywordMatch) ? '' : 'none';
+            });
+        }
+
+        function filterHistoryByDate(filterDate) {
+            applyHistoryFilters();
+        }
+
+        function filterHistoryByKeyword(keyword) {
+            applyHistoryFilters();
         }
 
         async function deleteHistoryItem(event) {
@@ -910,11 +1028,153 @@
             try {
                 const response = await fetch(`/api/history/${itemId}`, { method: 'DELETE' });
                 if (!response.ok) throw new Error('Failed to delete item from server.');
-                document.getElementById(`item-${itemId}`).remove();
+                
+                // Remove from both views
+                const accordionItem = document.getElementById(`item-${itemId}`);
+                if (accordionItem) accordionItem.remove();
+                const tableRow = document.querySelector(`#history-table tr[data-id="${itemId}"]`);
+                if (tableRow) tableRow.remove();
+
                 showToast('Success', 'History item deleted.', 'success');
             } catch (error) {
                 showToast('Error', error.message, 'danger');
             }
+        }
+
+        function parseSummary(summaryText) {
+            const data = {};
+            const fields = ["Customer Name", "Issue Category", "Key Information", "Payment Date & Time", "Payment Amount", "Payer Details", "Payee Details", "UPI Transaction ID", "Recommended Next Step"];
+            
+            if (!summaryText) return Object.fromEntries(fields.map(f => [f, 'N/A']));
+
+            fields.forEach(field => {
+                // Regex to find "**Field:**" and capture everything until the next "**Field:**" or end of string
+                const regex = new RegExp(`\\*\\*${field}:\\*\\*\\s*([\\s\\S]*?)(?=\\s*\\*\\*([A-Z][a-z]+|UPI)|$)`);
+                const match = summaryText.match(regex);
+                let value = match ? match[1].trim().replace(/^₹\s*/, '') : 'N/A'; // Also strip currency symbol here
+                // Clean up customer name
+                if (field === "Customer Name") {
+                    value = value.split(/[\n(]/)[0].trim(); // Take only the first line/part before parenthesis
+                }
+                data[field] = value;
+            });
+            return data;
+        }
+
+        function createHistoryTable(history) {
+            const table = document.getElementById('history-table');
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            thead.innerHTML = `
+                <tr>
+                    <th data-sort-dir="desc">Date <i class="bi bi-arrow-down"></i></th>
+                    <th>Customer Name</th>
+                    <th>Issue Category</th>
+                    <th>Payment Date</th>
+                    <th>Payer</th>
+                    <th>Payee</th>
+                    <th>Amount (₹)</th>
+                    <th>UPI Transaction ID</th>
+                </tr>
+            `;
+            tbody.innerHTML = '';
+
+            history.forEach(item => {
+                const summaryData = parseSummary(item.summary);
+                const row = document.createElement('tr');
+                row.setAttribute('data-id', item.id);
+                row.setAttribute('data-timestamp', item.timestamp);
+                row.innerHTML = `
+                    <td class="text-nowrap">${new Date(item.timestamp).toLocaleDateString()}</td>
+                    <td>${summaryData['Customer Name'] || 'N/A'}</td>
+                    <td>${summaryData['Issue Category']}</td>
+                    <td>${summaryData['Payment Date & Time']}</td>
+                    <td>${summaryData['Payer Details']}</td>
+                    <td>${summaryData['Payee Details']}</td>
+                    <td>${summaryData['Payment Amount']}</td>
+                    <td>${summaryData['UPI Transaction ID']}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Add export functionality after table is created
+            document.getElementById('export-csv-btn').onclick = () => exportTableToCSV('Interjet-Audit-Log.csv');
+            
+            // Add sorting functionality
+            thead.querySelectorAll('th').forEach((header, index) => {
+                header.addEventListener('click', () => {
+                    sortTable(table, index);
+                });
+                header.style.cursor = 'pointer';
+            });
+            // Initial sort by date descending
+            sortTable(table, 0);
+        }
+
+        function sortTable(table, columnIndex) {
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const header = table.querySelector(`thead th:nth-child(${columnIndex + 1})`);
+            const currentDir = header.getAttribute('data-sort-dir') || 'asc';
+            const newDir = currentDir === 'asc' ? 'desc' : 'asc';
+
+            // Reset other headers
+            table.querySelectorAll('thead th').forEach(th => {
+                th.removeAttribute('data-sort-dir');
+                th.querySelector('i')?.remove();
+            });
+
+            header.setAttribute('data-sort-dir', newDir);
+            header.insertAdjacentHTML('beforeend', ` <i class="bi ${newDir === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'}"></i>`);
+
+            rows.sort((a, b) => {
+                const aText = a.cells[columnIndex].innerText;
+                const bText = b.cells[columnIndex].innerText;
+                
+                // Attempt to sort as dates or numbers if possible
+                const aVal = Date.parse(aText) || (isFinite(aText) ? parseFloat(aText) : aText.toLowerCase());
+                const bVal = Date.parse(bText) || (isFinite(bText) ? parseFloat(bText) : bText.toLowerCase());
+
+                if (aVal < bVal) return newDir === 'asc' ? -1 : 1;
+                if (aVal > bVal) return newDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function exportTableToCSV(filename) {
+            const csv = [];
+            const table = document.getElementById("history-table");
+            const rows = table.querySelectorAll("tr");
+            
+            for (const row of rows) {
+                // Only include visible rows in the export
+                if (row.style.display === 'none') continue;
+
+                const rowData = [];
+                const cols = row.querySelectorAll("td, th");
+                
+                for (const col of cols) {
+                    // Replace commas to avoid CSV format issues and trim whitespace
+                    let data = col.innerText.replace(/,/g, ";").trim();
+                    // Wrap in double quotes to handle any remaining special characters
+                    rowData.push(`"${data}"`);
+                }
+                csv.push(rowData.join(","));
+            }
+
+            const csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+            const downloadLink = document.createElement("a");
+            
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
         }
 
         function createHistoryItem(item) {

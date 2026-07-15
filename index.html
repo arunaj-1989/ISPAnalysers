@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interjet Support Analyser</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-accent: #8A55F7;
+            --bs-body-font-family: 'Inter', sans-serif;            
+            /* Default font size increased for better readability */
+            --bs-body-font-size: 0.875rem; /* 14px */
+        }
+
+        [data-bs-theme="dark"] {
+            --sidebar-bg: #1a1d2e;
+            --body-bg: #101221;
+            --surface-bg: rgba(40, 44, 73, 0.6);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --bs-primary: var(--primary-accent);
+            --bs-primary-rgb: 138, 85, 247;
+            --bs-body-color: #e0e0e0;
+            --bs-body-bg: var(--body-bg);
+            --bs-border-color: var(--border-color);
+        }
+
+        [data-bs-theme="light"] {
+            --sidebar-bg: #f8f9fa;
+            --body-bg: #ffffff;
+            --surface-bg: rgba(248, 249, 250, 0.8);
+            --border-color: rgba(0, 0, 0, 0.1);
+            --bs-primary: var(--primary-accent);
+            --bs-primary-rgb: 138, 85, 247;
+            --bs-body-color: #212529;
+            --bs-body-bg: var(--body-bg);
+            --bs-border-color: var(--border-color);
+        }
+
+        body {
+            background-color: var(--body-bg);
+            color: var(--bs-body-color);
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 1.25rem 1rem;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+        }
+
+        .sidebar.show {
+            transform: translateX(0);
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+        }
+
+        .main-content {
+            padding-top: 1.5rem;
+        }
+
+        .card-glass {
+            background-color: var(--surface-bg);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .workflow-step {
+            position: relative;
+        }
+        .workflow-icon-wrapper {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border: 2px solid; /* Overridden by rules below */
+            transition: all 0.3s ease;
+        }
+        .workflow-step .status-badge {
+            position: absolute;
+            top: -5px;
+            right: -2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .workflow-connector {
+            position: absolute;
+            top: 25px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            z-index: -1;
+            transition: background-color 0.3s ease;
+        }
+        .workflow-step:last-child .workflow-connector {
+            display: none;
+        }
+        .workflow-step .workflow-icon-wrapper {
+            border-color: var(--border-color);
+            background-color: transparent;
+        }
+        .workflow-step.active .workflow-icon-wrapper {
+            border-color: var(--primary-accent);
+            background-color: rgba(var(--bs-primary-rgb), 0.1);
+        }
+        .workflow-step.complete .workflow-icon-wrapper {
+            border-color: var(--bs-success);
+            background-color: rgba(var(--bs-success-rgb), 0.1);
+        }
+        .workflow-step .status-badge {
+            background-color: var(--sidebar-bg);
+        }
+        .workflow-connector {
+            background-color: var(--border-color);
+        }
+        .workflow-step.complete .workflow-connector {
+            background-color: var(--bs-success);
+        }
+        .progress-bar {
+            transition: width 0.2s ease-in-out !important;
+        }
+        .btn-xs {
+            --bs-btn-padding-y: .1rem;
+            --bs-btn-padding-x: .5rem;
+            --bs-btn-font-size: .75rem;
+            --bs-btn-border-radius: var(--bs-border-radius-sm);
+        }
+        .accordion-button:not(.collapsed) {
+            background-color: rgba(var(--bs-primary-rgb), 0.1);
+            color: var(--bs-body-color);
+        }
+
+        @media (max-width: 767.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                width: 80%;
+                max-width: 320px;
+            }
+            .main-content .header {
+                position: relative;
+                padding-top: 3rem; /* Add padding to make space for buttons */
+            }
+        }
+
+        .status-ring {
+            position: relative;
+            width: 55px;
+            height: 55px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .status-ring svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        .status-ring .ring-bg {
+            fill: none;
+            stroke: var(--border-color);
+            stroke-width: 5;
+        }
+        .status-ring .ring-fg {
+            fill: none;
+            stroke-width: 5;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid vh-100">
+        <div class="row h-100">
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block sidebar">
+                <div class="d-flex flex-column h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <a class="navbar-brand d-flex align-items-center" href="#">
+                            <i class="bi bi-reception-4 fs-5 me-2 text-primary"></i>
+                            <strong class="fs-6">Interjet Analyser</strong>
+                        </a>
+                    </div>
+
+                    <!-- Navigation -->
+                    <ul class="nav nav-pills flex-column mb-4">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link active" id="nav-analyser"><i class="bi bi-magic me-2"></i>Analyser</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" id="nav-dashboard"><i class="bi bi-layout-text-sidebar-reverse me-2"></i>Dashboard</a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" id="nav-settings"><i class="bi bi-sliders me-2"></i>Settings</a>
+                        </li>
+                    </ul>                    
+
+                    <!-- System Status Card anchored at the bottom -->
+                    <div class="mt-auto" >
+                        <h6 class="text-muted text-uppercase small mb-3 d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-hdd-stack me-2"></i>System Status</span>
+                            <button class="btn btn-sm btn-outline-secondary py-0" id="refresh-status-btn"><i class="bi bi-arrow-clockwise"></i></button>
+                        </h6>
+                        <div id="system-info-body" class="d-flex justify-content-around text-center small">
+                            <!-- GPU Ring -->
+                            <div id="gpu-info-container" style="display: none;" title="GPU Memory Usage">
+                                <div class="status-ring">
+                                    <svg><circle class="ring-bg" cx="27.5" cy="27.5" r="25"></circle><circle id="gpu-ring-fg" class="ring-fg" cx="27.5" cy="27.5" r="25" stroke="var(--bs-primary)"></circle></svg>
+                                    <span id="gpu-usage-text" class="fw-bold"></span>
+                                </div>
+                                <div class="text-muted mt-1">GPU</div>
+                            </div>
+                            <!-- CPU Only Text -->
+                            <div id="cpu-only-container" style="display: block;" class="align-self-center">
+                                <strong class="text-muted"><i class="bi bi-cpu me-2"></i>On CPU</strong>
+                            </div>
+                            <!-- CPU Ring -->
+                            <div title="CPU Usage">
+                                <div class="status-ring">
+                                    <svg><circle class="ring-bg" cx="27.5" cy="27.5" r="25"></circle><circle id="cpu-ring-fg" class="ring-fg" cx="27.5" cy="27.5" r="25" stroke="var(--bs-info)"></circle></svg>
+                                    <span id="cpu-usage-text" class="fw-bold"></span>
+                                </div>
+                                <div class="text-muted mt-1">CPU</div>
+                            </div>
+                            <!-- Memory Ring -->
+                            <div title="Memory Usage">
+                                <div class="status-ring">
+                                    <svg><circle class="ring-bg" cx="27.5" cy="27.5" r="25"></circle><circle id="mem-ring-fg" class="ring-fg" cx="27.5" cy="27.5" r="25" stroke="var(--bs-success)"></circle></svg>
+                                    <span id="mem-usage-text" class="fw-bold"></span>
+                                </div>
+                                <div class="text-muted mt-1">Mem</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <main class="col-12 col-md-9 ms-md-auto col-lg-10 ms-lg-auto px-md-4 main-content" id="analyser-view">
+                <header class="text-center mb-4 header">
+                    <button class="btn btn-outline-secondary d-md-none position-absolute top-0 start-0 m-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="dropdown position-absolute top-0 end-0 m-3">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center" type="button" id="theme-switcher" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-sun-fill theme-icon-light d-none me-1"></i>
+                            <i class="bi bi-moon-stars-fill theme-icon-dark d-none me-1"></i>
+                            <span class="theme-label">Theme</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="theme-switcher">
+                            <li><button class="dropdown-item d-flex align-items-center" type="button" data-bs-theme-value="light"><i class="bi bi-sun-fill me-2"></i> Light</button></li>
+                            <li><button class="dropdown-item d-flex align-items-center" type="button" data-bs-theme-value="dark"><i class="bi bi-moon-stars-fill me-2"></i> Dark</button></li>
+                            <li><button class="dropdown-item d-flex align-items-center" type="button" data-bs-theme-value="auto"><i class="bi bi-circle-half me-2"></i> Auto</button></li>
+                        </ul>
+                    </div>
+                    <h1 class="display-6">AI-Powered Interaction Analysis</h1>
+                    <p class="text-white-50">Upload customer call audio and a supporting screenshot to generate a detailed analysis.</p>
+                </header>
+
+                <div id="analyser-controls-view">
+                    <div class="row">
+                        <div class="col-lg-7">
+                            <div class="card card-glass mb-4 h-100" id="upload-card">
+                                <div class="card-header"><h5 class="mb-0">Upload Files</h5></div>
+                                <div class="card-body p-4">
+                                    <form id="upload-form">
+                                        <div class="row mb-4">
+                                            <div class="col">
+                                                <label for="audio" class="form-label fw-semibold small"><i class="bi bi-mic-fill me-2"></i>Customer Call Audio</label>
+                                                <input type="file" class="form-control form-control-sm" id="audio" name="audio" accept="audio/*">
+                                            </div>
+                                            <div class="col">
+                                                <label for="screenshot" class="form-label fw-semibold small"><i class="bi bi-image me-2"></i>Supporting Screenshot</label>
+                                                <input type="file" class="form-control form-control-sm" id="screenshot" name="screenshot" accept="image/*">
+                                            </div>
+                                        </div>
+                                        <input type="hidden" name="step_order" value="ocr,transcribe,summarize">
+                                        <div class="row g-2 mt-3">
+                                            <div class="col"><button type="submit" class="btn btn-primary btn-xs w-100"><i class="bi bi-magic me-1"></i>Analyse</button></div>
+                                            <div class="col"><button type="button" id="clear-session-btn" class="btn btn-secondary btn-xs w-100 text-nowrap"><i class="bi bi-eraser-fill me-1"></i>Clear</button></div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-5">
+                            <div class="card card-glass mb-4 h-100">
+                                <div class="card-header"><h5 class="mb-0"><i class="bi bi-gear-fill me-2"></i>Settings & Controls</h5></div>
+                                <div class="card-body p-4">
+                                    <div class="vstack gap-3">
+                                        <div>
+                                            <label for="agent-model" class="form-label small">Agent Model</label>
+                                            <select class="form-select form-select-sm" id="agent-model" name="agent_model" form="upload-form">
+                                                <!-- Options will be populated by JavaScript -->
+                                            </select>
+                                        </div>
+                                        <div class="row g-2 align-items-end">
+                                            <div class="col-8">
+                                                <label for="whisper-model" class="form-label small">Whisper Model</label>
+                                                <select class="form-select form-select-sm" id="whisper-model" name="model" form="upload-form">
+                                                    <!-- Options will be populated by JavaScript -->
+                                                </select>
+                                            </div>
+                                            <div class="col-4">
+                                                <button type="button" id="clear-gpu-btn" class="btn btn-outline-danger btn-xs w-100 text-nowrap"><span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span><i class="bi bi-recycle me-1"></i><span class="btn-text">Clear Cache</span></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workflow View -->
+                <div id="workflow" class="card card-glass mb-4" style="display: none;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Analysis in Progress...</h5>
+                        <button id="cancel-analysis-btn" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Cancel</button>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="row text-center">
+                            <!-- Step 1: OCR -->
+                            <div id="step-ocr" class="col-md-3 workflow-step">
+                                <div class="workflow-icon-wrapper mx-auto mb-2">
+                                    <i class="bi bi-card-image fs-4"></i>
+                                    <span class="status-badge"></span>
+                                </div>
+                                <p class="mb-1 fw-bold">Extracting Image Text</p>
+                                <div class="progress" style="height: 5px;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-primary"></div>
+                                </div>
+                                <div class="workflow-connector"></div>
+                            </div>
+                            <!-- Step 2: Transcribe -->
+                            <div id="step-transcribe" class="col-md-3 workflow-step">
+                                <div class="workflow-icon-wrapper mx-auto mb-2">
+                                    <i class="bi bi-mic fs-4"></i>
+                                    <span class="status-badge"></span>
+                                </div>
+                                <p class="mb-1 fw-bold">Transcribing Audio</p>
+                                <div class="progress" style="height: 5px;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-primary"></div>
+                                </div>
+                                <div class="workflow-connector"></div>
+                            </div>
+                            <!-- Step 3: Summarize -->
+                            <div id="step-summarize" class="col-md-3 workflow-step">
+                                <div class="workflow-icon-wrapper mx-auto mb-2">
+                                    <i class="bi bi-lightbulb fs-4"></i>
+                                    <span class="status-badge"></span>
+                                </div>
+                                <p class="mb-1 fw-bold">Generating AI Summary</p>
+                                <div class="progress" style="height: 5px;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-primary"></div>
+                                </div>
+                                <div class="workflow-connector"></div>
+                            </div>
+                            <!-- Step 4: Cleanup -->
+                            <div id="step-cleanup" class="col-md-3 workflow-step">
+                                <div class="workflow-icon-wrapper mx-auto mb-2">
+                                    <i class="bi bi-recycle fs-4"></i>
+                                    <span class="status-badge"></span>
+                                </div>
+                                <p class="mb-1 fw-bold">Cleaning Up</p>
+                                <div class="progress" style="height: 5px;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-primary"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="error" class="alert alert-danger" style="display: none;"></div>
+<br>
+                <div id="result" class="card card-glass result-card" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0">Analysis Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" id="resultTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary-panel" type="button" role="tab">
+                                    <i class="bi bi-card-text me-2"></i>AI Summary
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="transcription-tab" data-bs-toggle="tab" data-bs-target="#transcription-panel" type="button" role="tab">
+                                    <i class="bi bi-quote me-2"></i>Audio Transcription
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="ocr-tab" data-bs-toggle="tab" data-bs-target="#ocr-panel" type="button" role="tab">
+                                    <i class="bi bi-file-earmark-font me-2"></i>Image Text (OCR)
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content pt-3" id="resultTabsContent">
+                            <div class="tab-pane fade show active" id="summary-panel" role="tabpanel">
+                                <div class="p-3 rounded">
+                                    <p id="llm-summary" style="white-space: pre-wrap;"></p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="transcription-panel" role="tabpanel">
+                                <div class="p-3 rounded">
+                                    <p id="transcription" class="text-muted"></p>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="ocr-panel" role="tabpanel">
+                                <pre id="ocr-text" class="p-3 rounded bg-body-tertiary"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Dashboard View -->
+            <main class="col-12 col-md-9 ms-md-auto col-lg-10 ms-lg-auto px-md-4 main-content" id="dashboard-view" style="display: none;">
+                <header class="text-center mb-4">
+                    <h1 class="display-6">Analysis History</h1>
+                    <p class="text-white-50 mb-0">Review previously processed interactions.</p>
+                </header>
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="btn-group" role="group" aria-label="View toggle">
+                        <input type="radio" class="btn-check" name="view-toggle" id="list-view-btn" autocomplete="off">
+                        <label class="btn btn-sm btn-outline-secondary" for="list-view-btn"><i class="bi bi-list-ul me-1"></i> List View</label>
+
+                        <input type="radio" class="btn-check" name="view-toggle" id="table-view-btn" autocomplete="off" checked>
+                        <label class="btn btn-sm btn-outline-secondary" for="table-view-btn"><i class="bi bi-table me-1"></i> Audit Table</label>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="search" id="history-search-filter" class="form-control form-control-sm" placeholder="Search history..." style="max-width: 200px;">
+                        <button class="btn btn-sm btn-outline-success" id="export-csv-btn" style="display: none;"><i class="bi bi-download me-1"></i>Export CSV</button>
+                        <label for="history-date-filter" class="form-label small me-2 mb-0 text-nowrap">Filter by Date:</label>
+                        <input type="date" id="history-date-filter" class="form-control form-control-sm" style="width: 150px;">
+                    </div>
+                </div>
+
+                <div id="dashboard-loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                </div>
+
+                <div id="list-view-container">
+                    <div class="accordion" id="history-accordion">
+                    </div>
+                </div>
+
+                <div id="table-view-container" style="display: none;">
+                    <div class="table-responsive card-glass p-2 rounded">
+                        <table class="table table-sm table-hover" id="history-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Settings View -->
+            <main class="col-12 col-md-9 ms-md-auto col-lg-10 ms-lg-auto px-md-4 main-content" id="settings-view" style="display: none;">
+                <header class="text-center mb-4">
+                    <h1 class="display-6">Settings</h1>
+                    <p class="text-white-50 mb-0">Configure default models and monitor system resources.</p>
+                </header>
+
+                <!-- Resource Monitoring -->
+                <h5 class="mb-3">Resource Utilization</h5>
+                <div class="row mb-5">
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="card card-glass h-100">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted"><i class="bi bi-gpu-card me-2"></i>GPU</h6>
+                                <p class="display-5 fw-bold mb-0" id="settings-gpu-usage">--</p>
+                                <small class="text-white-50" id="settings-gpu-details">N/A</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="card card-glass h-100">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted"><i class="bi bi-cpu-fill me-2"></i>CPU</h6>
+                                <p class="display-5 fw-bold mb-0" id="settings-cpu-usage">-- %</p>
+                                <small class="text-white-50">Current Load</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="card card-glass h-100">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted"><i class="bi bi-memory me-2"></i>RAM</h6>
+                                <p class="display-5 fw-bold mb-0" id="settings-ram-usage">-- %</p>
+                                <small class="text-white-50" id="settings-ram-details">-- / -- GB</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-4">
+                        <div class="card card-glass h-100">
+                            <div class="card-body text-center">
+                                <h6 class="card-title text-muted"><i class="bi bi-device-hdd-fill me-2"></i>Storage</h6>
+                                <p class="display-5 fw-bold mb-0" id="settings-storage-usage">-- %</p>
+                                <small class="text-white-50" id="settings-storage-details">-- / -- GB</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Configuration -->
+                <h5 class="mb-3">Model Configuration</h5>
+                <div class="card card-glass mb-4">
+                    <div class="card-body">
+                        <form id="settings-form">
+                            <div class="row">
+                                <div class="col-md-6 mb-3"><label for="default-agent-model" class="form-label">Default Agent Model</label><select id="default-agent-model" class="form-select">
+                                    <!-- Options will be populated by JavaScript -->
+                                </select></div>
+                                <div class="col-md-6 mb-3"><label for="default-whisper" class="form-label">Default Whisper Model</label><select id="default-whisper" class="form-select"><!-- Options will be populated by JavaScript --></select></div>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle-fill me-1"></i>Save Configuration</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-6 mb-4">
+                        <h5 class="mb-3">Agent Model Downloader (Ollama)</h5>
+                        <div class="card card-glass">
+                            <div class="card-body">
+                                <p class="card-text small text-muted">Pre-download agent models to make them available for analysis.</p>
+                                <div id="agent-model-downloader-list" class="list-group list-group-flush">
+                                    <!-- List will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 mb-4">
+                        <h5 class="mb-3">Transcription Model Downloader (Whisper)</h5>
+                        <div class="card card-glass">
+                            <div class="card-body">
+                                <p class="card-text small text-muted">Pre-download transcription models for offline use.</p>
+                                <div id="whisper-model-downloader-list" class="list-group list-group-flush">
+                                    <!-- List will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Toast container for notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+      <div id="notification-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+          <i id="toast-icon" class="bi me-2"></i>
+          <strong class="me-auto" id="toast-title">Notification</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="toast-body">
+        </div>
+      </div>
+    </div>
+
+    <!-- Offcanvas Backdrop -->
+    <div class="offcanvas-backdrop fade" id="sidebar-backdrop" style="display:none;"></div>
+
+
+
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- Theme Switcher Logic ---
+        const getStoredTheme = () => localStorage.getItem('theme');
+        const setStoredTheme = theme => localStorage.setItem('theme', theme);
+
+        const getPreferredTheme = () => {
+            const storedTheme = getStoredTheme();
+            if (storedTheme) {
+                return storedTheme;
+            }
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        };
+
+        const setTheme = theme => {
+            let effectiveTheme = theme;
+            if (theme === 'auto') {
+                effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-bs-theme', effectiveTheme);
+            updateThemeButton(theme);
+        };
+
+        const updateThemeButton = (selectedTheme) => {
+            const themeSwitcher = document.getElementById('theme-switcher');
+            const lightIcon = themeSwitcher.querySelector('.theme-icon-light');
+            const darkIcon = themeSwitcher.querySelector('.theme-icon-dark');
+            const themeLabel = themeSwitcher.querySelector('.theme-label');
+            const activeTheme = document.documentElement.getAttribute('data-bs-theme');
+
+            if (activeTheme === 'dark') {
+                lightIcon.classList.add('d-none');
+                darkIcon.classList.remove('d-none');
+            } else {
+                darkIcon.classList.add('d-none');
+                lightIcon.classList.remove('d-none');
+            }
+            themeLabel.textContent = selectedTheme.charAt(0).toUpperCase() + selectedTheme.slice(1);
+        };
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (getStoredTheme() === 'auto' || !getStoredTheme()) {
+                setTheme('auto');
+            }
+        });
+        // --- End Theme Switcher Logic ---
+
+        // --- Sidebar Toggle Logic for Mobile ---
+        const sidebar = document.getElementById('sidebar');
+        const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+        const sidebarToggleButton = document.querySelector('[data-bs-target="#sidebar"]');
+
+        function toggleSidebar(show) {
+            if (show) {
+                sidebar.classList.add('show');
+                sidebarBackdrop.style.display = 'block';
+                sidebarBackdrop.classList.add('show');
+            } else {
+                sidebar.classList.remove('show');
+                sidebarBackdrop.classList.remove('show');
+                setTimeout(() => { sidebarBackdrop.style.display = 'none'; }, 150);
+            }
+        }
+
+        sidebarToggleButton?.addEventListener('click', () => toggleSidebar(true));
+        sidebarBackdrop?.addEventListener('click', () => toggleSidebar(false));
+        // --- End Sidebar Logic ---
+
+        const notificationToast = new bootstrap.Toast(document.getElementById('notification-toast'));
+        function showToast(title, message, type = 'info') {
+            document.getElementById('toast-title').textContent = title;
+            document.getElementById('toast-body').textContent = message;
+            document.getElementById('toast-icon').className = `bi me-2 ${type === 'success' ? 'bi-check-circle-fill text-success' : type === 'danger' ? 'bi-exclamation-triangle-fill text-danger' : 'bi-info-circle-fill text-info'}`;
+            notificationToast.show();
+        }
+
+        // Fetches and displays system hardware information
+        async function updateSystemInfo() {
+            const setRingValue = (circle, percent) => {
+                const radius = circle.r.baseVal.value;
+                const circumference = 2 * Math.PI * radius;
+                circle.style.strokeDasharray = `${circumference} ${circumference}`;
+                const offset = circumference - (percent / 100) * circumference;
+                circle.style.strokeDashoffset = offset;
+            };
+            try {
+                const response = await fetch('/api/system-info');
+                if (!response.ok) throw new Error(`Server responded with status: ${response.status}`);
+                const data = await response.json();
+                
+                const gpuContainer = document.getElementById('gpu-info-container');
+                const cpuOnlyContainer = document.getElementById('cpu-only-container');
+
+                let percent_used = 0;
+                let used_gb = 0;
+                let total_gb = 0;
+                const cpu_percent = data.cpu.percent.toFixed(0);
+                const mem_percent = data.ram.percent.toFixed(0);
+
+                if (data.device === 'cuda' && data.gpu && data.gpu.name) {
+                    gpuContainer.style.display = 'block';
+                    cpuOnlyContainer.style.display = 'none';
+
+                    const used = data.gpu.total_memory - data.gpu.free_memory;
+                    used_gb = (used / (1024**3)).toFixed(2);
+                    total_gb = (data.gpu.total_memory / (1024**3)).toFixed(2);
+                    percent_used = data.gpu.total_memory > 0 ? ((used / data.gpu.total_memory) * 100).toFixed(1) : 0;
+                    
+                    setRingValue(document.getElementById('gpu-ring-fg'), percent_used);
+                    document.getElementById('gpu-usage-text').textContent = `${Math.round(percent_used)}%`;
+                    gpuContainer.title = `GPU Memory: ${used_gb}GB / ${total_gb}GB`;
+                } else {
+                    gpuContainer.style.display = 'none';
+                    cpuOnlyContainer.style.display = 'block';
+                }
+
+                // Settings Page Metrics
+                const settingsGpuUsage = document.getElementById('settings-gpu-usage');
+                const settingsGpuDetails = document.getElementById('settings-gpu-details');
+                if (settingsGpuUsage) {
+                    if (data.device === 'cuda' && data.gpu && data.gpu.name) {
+                        settingsGpuUsage.textContent = `${Math.round(percent_used)}%`;
+                        settingsGpuDetails.textContent = `${used_gb} / ${total_gb} GB`;
+                    } else {
+                        settingsGpuUsage.textContent = 'N/A';
+                        settingsGpuDetails.textContent = 'CPU Mode';
+                    }
+                }
+
+                const settingsCpuUsage = document.getElementById('settings-cpu-usage');
+                if(settingsCpuUsage) settingsCpuUsage.textContent = `${cpu_percent}%`;
+
+                const settingsRamUsage = document.getElementById('settings-ram-usage');
+                const settingsRamDetails = document.getElementById('settings-ram-details');
+                if(settingsRamUsage) settingsRamUsage.textContent = `${data.ram.percent}%`;
+                if(settingsRamDetails) settingsRamDetails.textContent = `${((data.ram.total - data.ram.available)/1024**3).toFixed(2)} / ${(data.ram.total/1024**3).toFixed(2)} GB`;
+
+                const settingsStorageUsage = document.getElementById('settings-storage-usage');
+                const settingsStorageDetails = document.getElementById('settings-storage-details');
+                if(settingsStorageUsage) settingsStorageUsage.textContent = `${data.storage.percent}%`;
+                if(settingsStorageDetails) settingsStorageDetails.textContent = `${(data.storage.used/1024**3).toFixed(2)} / ${(data.storage.total/1024**3).toFixed(2)} GB`;
+
+
+                // Sidebar Metrics
+                setRingValue(document.getElementById('cpu-ring-fg'), data.cpu.percent);
+                document.getElementById('cpu-usage-text').textContent = `${cpu_percent}%`;
+
+                setRingValue(document.getElementById('mem-ring-fg'), mem_percent);
+                document.getElementById('mem-usage-text').textContent = `${mem_percent}%`;
+
+            } catch (error) {
+                console.error("Could not update system info:", error);
+                if (systemInfoInterval) {
+                    showToast('Connection Error', 'Could not retrieve system status from the server.', 'danger');
+                    clearInterval(systemInfoInterval);
+                    systemInfoInterval = null;
+                }
+            }
+        }
+
+        let analysisAbortController = null;
+
+        // Main submission handler
+        document.getElementById('upload-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+
+            const audioFile = document.querySelector('#audio').files[0];
+            const screenshotFile = document.querySelector('#screenshot').files[0];
+
+            if (!audioFile && !screenshotFile) {
+                showToast('Input Required', 'Please upload an audio file or a screenshot to start the analysis.', 'danger');
+                return;
+            }
+
+            const form = event.target;
+            const formData = new FormData();
+
+            analysisAbortController = new AbortController();
+            const signal = analysisAbortController.signal;
+
+            if (screenshotFile) {
+                formData.append('screenshot', screenshotFile);
+            }
+            if (audioFile) {
+                formData.append('audio', audioFile);
+            }
+            formData.append('model', document.querySelector('#whisper-model').value);
+            formData.append('agent_model', document.querySelector('#agent-model').value);
+            
+            const resultDiv = document.getElementById('result');
+            const errorDiv = document.getElementById('error');
+            const workflowDiv = document.getElementById('workflow');
+            const uploadCard = document.getElementById('upload-card');
+            const controlsView = document.getElementById('analyser-controls-view'); //
+
+            // Reset UI elements
+            resetAnalysisUI();
+            // Immediately hide form and show workflow
+            resultDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+            uploadCard.style.display = 'none';
+            controlsView.style.display = 'none';
+            workflowDiv.style.display = 'block';
+
+            // NOTE: The 'steps' object must be defined *after* workflowDiv is made visible.
+            // Otherwise, querySelector cannot find the progress bar elements inside the hidden container.
+            // This was the root cause of the "nothing happens" bug.
+            const getStep = (id) => {
+                const stepEl = document.getElementById(id);
+                return {
+                    el: stepEl,
+                    badge: stepEl.querySelector(`.status-badge`),
+                    progressBar: stepEl.querySelector(`.progress-bar`),
+                    interval: null,
+                };
+            };
+
+            const steps = {
+                ocr: getStep('step-ocr'),
+                transcribe: getStep('step-transcribe'),
+                summarize: getStep('step-summarize'),
+                cleanup: getStep('step-cleanup'),
+            };
+
+            // Reset workflow UI
+            Object.values(steps).forEach(step => {
+                step.badge.innerHTML = '<i class="bi bi-hourglass text-muted"></i>';
+                step.el.classList.remove('active', 'complete');
+                step.progressBar.style.width = '0%';
+                step.progressBar.setAttribute('aria-valuenow', '0');
+                if (step.interval) clearInterval(step.interval);
+            });
+
+            const results = {};
+
+            try {
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    signal: signal,
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    // Throw an error that includes the server's response to make debugging easier
+                    throw new Error(`Server error: ${response.status} ${response.statusText}. Details: ${errorText}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    let boundary = buffer.lastIndexOf('\n\n');
+                    if (boundary === -1) continue;
+
+                    const chunk = buffer.substring(0, boundary);
+                    buffer = buffer.substring(boundary + 2);
+
+                    const lines = chunk.split('\n\n');
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+
+                        const eventData = line.substring(6);
+                        // Defensively check if the data is a JSON object before parsing.
+                        // The backend might send simple string messages (e.g., for final confirmation)
+                        // that are not valid JSON.
+                        if (!eventData.startsWith('{')) continue;
+
+                        try {
+                            const data = JSON.parse(eventData);
+
+                            if (data.error) throw new Error(data.error);
+                            if (data.step === 'done') break;
+
+                            const { step, status, result, message } = data;
+                            const stepUI = steps[step];
+
+                            if (!stepUI) continue; // Ignore unknown steps
+                            if (!stepUI) continue; // Ignore unknown steps
+
+                            if (status === 'in_progress') {
+                                stepUI.badge.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"></div>';
+                                stepUI.el.classList.add('active');
+
+                                // Simulate progress from 0 to 95%
+                                let progress = 0;
+                                stepUI.progressBar.style.width = '0%';
+                                stepUI.interval = setInterval(() => {
+                                    progress += Math.random() * 5; // variable increment
+                                    if (progress >= 95) {
+                                        progress = 95; // cap at 95% until complete
+                                        clearInterval(stepUI.interval);
+                                    }
+                                    stepUI.progressBar.style.width = progress + '%';
+                                    stepUI.progressBar.setAttribute('aria-valuenow', progress);
+                                }, 250);
+                            } else if (status === 'complete') {
+                                if (stepUI.interval) clearInterval(stepUI.interval);
+                                stepUI.progressBar.style.width = '100%';
+                                stepUI.progressBar.setAttribute('aria-valuenow', '100');
+                                stepUI.badge.innerHTML = '<i class="bi bi-check-circle-fill text-success fs-5"></i>';
+                                stepUI.el.classList.remove('active');
+                                stepUI.el.classList.add('complete');
+                                results[step] = result;
+                            } else if (status === 'skipped') {
+                                if (stepUI.interval) clearInterval(stepUI.interval);
+                                stepUI.progressBar.style.width = '100%';
+                                stepUI.badge.innerHTML = '<i class="bi bi-skip-forward-fill text-muted"></i>';
+                                stepUI.el.classList.add('complete');
+                            }
+                        } catch (e) {
+                            console.error("Failed to parse JSON from stream:", line, e);
+                            // Continue to next line
+                        }
+                    }
+                }
+
+                // Populate results view
+                document.getElementById('llm-summary').innerHTML = results.summarize ? results.summarize.replace(/\n/g, '<br>') : 'No summary generated.';
+                document.getElementById('transcription').textContent = results.transcribe || 'No transcription available.';
+                document.getElementById('ocr-text').textContent = Array.isArray(results.ocr) ? results.ocr.join('\n') : (results.ocr || 'No text found in image.');
+                
+                resultDiv.style.display = 'block';
+                const firstTab = new bootstrap.Tab(document.getElementById('summary-tab'));
+                firstTab.show();
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('Analysis fetch aborted by user.');
+                    return; // Stop further processing
+                }
+                console.error("Analysis failed:", error);
+                console.error("Analysis failed:", error); // Always log the full error for debugging
+                let friendlyMessage = 'An unexpected error occurred. Please check the browser console for details.';
+                if (error instanceof TypeError && error.message.includes('fetch')) {
+                    friendlyMessage = 'A network error occurred. Please ensure the backend server is running and accessible. Check the console for more information.';
+                } else if (error instanceof SyntaxError) {
+                    friendlyMessage = 'Failed to parse server response. The data format may be incorrect. Check the browser console for details.';
+                } else if (error.message.startsWith('Server error:')) {
+                    friendlyMessage = 'The server returned an error. This is usually a problem with the backend processing. Check the browser console for details from the server.';
+                }
+                errorDiv.textContent = friendlyMessage;
+                errorDiv.style.display = 'block';
+            } finally {
+                // Hide workflow and show form
+                workflowDiv.style.display = 'none';
+                document.getElementById('analyser-controls-view').style.display = 'block';
+                uploadCard.style.display = 'block';
+                updateSystemInfo(); // Refresh system stats after processing
+                analysisAbortController = null; // Reset controller
+            }
+        });
+
+        function resetAnalysisUI() {
+            // Clear file inputs without resetting the entire form
+            document.getElementById('audio').value = '';
+            document.getElementById('screenshot').value = '';
+        }
+
+        // Initial load and refresh button
+        document.addEventListener('DOMContentLoaded', () => {
+            setTheme(getPreferredTheme());
+
+            document.querySelectorAll('[data-bs-theme-value]').forEach(toggle => {
+                toggle.addEventListener('click', () => {
+                    const theme = toggle.getAttribute('data-bs-theme-value');
+                    setStoredTheme(theme);
+                    setTheme(theme);
+                });
+            });
+            startSystemInfoUpdates();
+            setupNavigation();
+            loadAndApplyConfig(); // Load config on initial startup
+            populateModelDropdowns(); // Populate dropdowns on startup
+            // populateModelDropdowns is now called inside loadAndApplyConfig
+
+        });
+
+        // Cancel Analysis Button
+        document.getElementById('cancel-analysis-btn').addEventListener('click', async () => {
+            if (analysisAbortController) {
+                analysisAbortController.abort();
+                showToast('Cancelling...', 'The analysis has been cancelled.', 'warning');
+            }
+
+            // Reset the UI immediately
+            const workflowDiv = document.getElementById('workflow');
+            const uploadCard = document.getElementById('upload-card');
+            const controlsView = document.getElementById('analyser-controls-view');
+
+            workflowDiv.style.display = 'none';
+            controlsView.style.display = 'block';
+            uploadCard.style.display = 'block';
+            resetAnalysisUI();
+
+            // Also trigger the GPU cache clearing
+            document.getElementById('clear-gpu-btn').click();
+        });
+        document.getElementById('refresh-status-btn').addEventListener('click', updateSystemInfo);
+
+        // --- New Event Listeners ---
+        // Dynamic System Status
+        let systemInfoInterval = null;
+        function startSystemInfoUpdates() {
+            if (!systemInfoInterval) {
+                updateSystemInfo(); // Initial call
+                systemInfoInterval = setInterval(updateSystemInfo, 5000); // Update every 5 seconds
+            }
+        }
+
+        // Clear Session Button
+        document.getElementById('clear-session-btn').addEventListener('click', () => {
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            resetAnalysisUI();
+            loadAndApplyConfig(); // Reset dropdowns to saved defaults
+            showToast('Session Cleared', 'The results have been cleared from the view.');
+        });
+
+        // Clear GPU Cache Button
+        document.getElementById('clear-gpu-btn').addEventListener('click', async (event) => {
+            const button = event.currentTarget;
+            const spinner = button.querySelector('.spinner-border');
+            const icon = button.querySelector('.bi-recycle');
+            const text = button.querySelector('.btn-text');
+
+            button.disabled = true;
+            spinner.classList.remove('d-none');
+            icon.classList.add('d-none');
+            text.textContent = 'Clearing...';
+
+            try {
+                const response = await fetch('/api/clear-gpu-cache', { method: 'POST' });
+                const data = await response.json();
+                showToast(response.ok ? 'Success' : 'Error', data.message || data.error, response.ok ? 'success' : 'danger');
+            } catch (error) {
+                let message = error.message;
+                if (error instanceof TypeError && error.message.includes('fetch')) {
+                    message = 'Network error. Could not connect to the server.';
+                }
+                showToast('Error', message, 'danger');
+                console.error("Clear GPU cache failed:", error);
+            } finally {
+                button.disabled = false;
+                spinner.classList.add('d-none');
+                icon.classList.remove('d-none');
+                text.textContent = 'Clear Cache';
+                await updateSystemInfo(); // Refresh status
+            }
+        });
+
+        // --- Dashboard & Navigation Logic ---
+        function setupNavigation() {
+            const navAnalyser = document.getElementById('nav-analyser');
+            const navDashboard = document.getElementById('nav-dashboard');
+            const navSettings = document.getElementById('nav-settings');
+            const analyser_view = document.getElementById('analyser-view');
+            const dashboard_view = document.getElementById('dashboard-view');
+            const settings_view = document.getElementById('settings-view');
+
+            navAnalyser.addEventListener('click', (e) => {
+                e.preventDefault();
+                analyser_view.style.display = 'block';
+                dashboard_view.style.display = 'none';
+                settings_view.style.display = 'none';
+                navAnalyser.classList.add('active');
+                navDashboard.classList.remove('active');
+                navSettings.classList.remove('active');
+            });
+
+            navDashboard.addEventListener('click', (e) => {
+                e.preventDefault();
+                analyser_view.style.display = 'none';
+                dashboard_view.style.display = 'block';
+                settings_view.style.display = 'none';
+                navDashboard.classList.add('active');
+                navAnalyser.classList.remove('active');
+                navSettings.classList.remove('active');
+                loadHistory();
+            });
+
+            navSettings.addEventListener('click', (e) => {
+                e.preventDefault();
+                analyser_view.style.display = 'none';
+                dashboard_view.style.display = 'none';
+                settings_view.style.display = 'block';
+                navSettings.classList.add('active');
+                navAnalyser.classList.remove('active');
+                navDashboard.classList.remove('active');
+                loadAndApplyConfig(); // Also load settings when navigating to the page
+                populateModelDropdowns(); // Ensure dropdowns are populated
+                // populateModelDropdowns is now called inside loadAndApplyConfig
+                loadModelStatuses();
+            });
+
+            // Add event listener for the date filter
+            document.getElementById('history-date-filter').addEventListener('change', (e) => {
+                filterHistoryByDate(e.target.value);
+            });
+
+            // Add event listener for the search filter
+            document.getElementById('history-search-filter').addEventListener('input', (e) => {
+                filterHistoryByKeyword(e.target.value);
+            });
+
+            // View toggle buttons
+            document.getElementById('list-view-btn').addEventListener('change', () => {
+                document.getElementById('list-view-container').style.display = 'block';
+                document.getElementById('table-view-container').style.display = 'none';
+                document.getElementById('export-csv-btn').style.display = 'none';
+            });
+            document.getElementById('table-view-btn').addEventListener('change', () => {
+                document.getElementById('list-view-container').style.display = 'none';
+                document.getElementById('table-view-container').style.display = 'block';
+                document.getElementById('export-csv-btn').style.display = 'inline-block';
+            });
+
+            // Settings form submission
+            document.getElementById('settings-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const config = {
+                    default_agent_model: document.getElementById('default-agent-model').value,
+                    default_whisper: document.getElementById('default-whisper').value,
+                };
+                try {
+                    const response = await fetch('/api/config', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(config)
+                    });
+                    if (!response.ok) throw new Error('Failed to save configuration.');
+                    showToast('Success', 'Configuration saved successfully.', 'success');
+                    loadAndApplyConfig(); // Re-load config to update all dropdowns
+                } catch (error) {
+                    showToast('Error', error.message, 'danger');
+                }
+            });
+
+        }
+
+        async function loadModelStatuses() {
+            const agentList = document.getElementById('agent-model-downloader-list');
+            const whisperList = document.getElementById('whisper-model-downloader-list');
+            const loadingHTML = `<div class="list-group-item text-muted text-center"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</div>`;
+            agentList.innerHTML = loadingHTML;
+            whisperList.innerHTML = loadingHTML;
+
+            try {
+                const response = await fetch('/api/models-status');
+                if (!response.ok) throw new Error(`Server error: ${response.status}`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                agentList.innerHTML = '';
+                Object.entries(data.agent_models).forEach(([name, info]) => {
+                    agentList.insertAdjacentHTML('beforeend', createModelListItem(name, info.status, 'agent'));
+                });
+
+                whisperList.innerHTML = '';
+                Object.entries(data.whisper_models).forEach(([name, info]) => {
+                    whisperList.insertAdjacentHTML('beforeend', createModelListItem(name, info.status, 'whisper'));
+                });
+
+                // Add event listeners to all new download buttons
+                document.querySelectorAll('.download-model-btn').forEach(btn => {
+                    btn.addEventListener('click', handleModelDownload);
+                });
+
+                // Add event listeners to all new delete buttons
+                document.querySelectorAll('.delete-model-btn').forEach(btn => {
+                    btn.addEventListener('click', handleModelDelete);
+                });
+
+            } catch (error) {
+                const errorHTML = `<div class="list-group-item text-danger text-center"><i class="bi bi-exclamation-triangle-fill me-2"></i>${error.message}</div>`;
+                agentList.innerHTML = errorHTML;
+                whisperList.innerHTML = errorHTML;
+            }
+        }
+
+        function createModelListItem(name, status, type) {
+            const isDownloaded = status === 'downloaded';
+            // Corrected logic: Use a single button for download/downloaded status
+            const downloadButton = `
+                <button class="btn btn-sm ${isDownloaded ? 'btn-outline-success' : 'btn-primary'} download-model-btn" data-model-name="${name}" data-model-type="${type}" ${isDownloaded ? 'disabled' : ''}>
+                    <span class="btn-text"><i class="bi ${isDownloaded ? 'bi-check-circle-fill' : 'bi-download'} me-2"></i>${isDownloaded ? 'Downloaded' : 'Download'}</span>
+                    <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+            `;
+            // The delete button logic was correct, but is included for clarity
+            const deleteButton = `
+                <button class="btn btn-sm btn-outline-danger delete-model-btn" data-model-name="${name}" data-model-type="${type}" title="Delete ${name}" ${!isDownloaded ? 'disabled' : ''}>
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+
+            return `
+                <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-start-0 border-end-0 px-0" id="model-item-${type}-${name.replace(':','-')}">
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">${name}</div>
+                        <div class="progress" style="height: 5px; display: none;" role="progressbar">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                        </div>
+                        <small class="status-text text-muted"></small>
+                    </div>
+                    <div class="ms-3 d-flex gap-2">
+                        ${downloadButton}
+                        ${deleteButton}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function handleModelDelete(event) {
+            const btn = event.currentTarget;
+            const modelName = btn.dataset.modelName;
+            const modelType = btn.dataset.modelType;
+
+            if (!confirm(`Are you sure you want to delete the model '${modelName}'? This cannot be undone.`)) {
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+            try {
+                const response = await fetch(`/api/models/${modelType}/${modelName}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to delete model.');
+                }
+                showToast('Success', `Model '${modelName}' deleted successfully.`, 'success');
+                loadModelStatuses(); // Refresh the list to show the change
+            } catch (error) {
+                showToast('Error', error.message, 'danger');
+                // Restore button on failure
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-trash"></i>';
+            }
+        }
+
+        async function handleModelDownload(event) {
+            const btn = event.currentTarget;
+            const modelName = btn.dataset.modelName;
+            const modelType = btn.dataset.modelType;
+
+            const itemEl = document.getElementById(`model-item-${modelType}-${modelName.replace(':','-')}`);
+            const btnText = btn.querySelector('.btn-text');
+            const spinner = btn.querySelector('.spinner-border');
+            const progressContainer = itemEl.querySelector('.progress');
+            const progressBar = itemEl.querySelector('.progress-bar');
+            const statusText = itemEl.querySelector('.status-text');
+
+            // UI updates for loading state
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btnText.textContent = 'Downloading...';
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressBar.classList.remove('bg-danger');
+            statusText.textContent = 'Starting...';
+
+            try {
+                const payload = {
+                    agent_models: modelType === 'agent' ? [modelName] : [],
+                    whisper_models: modelType === 'whisper' ? [modelName] : []
+                };
+
+                const response = await fetch('/api/cache-models', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n\n').filter(line => line.startsWith('data:'));
+
+                    for (const line of lines) {
+                        const jsonString = line.substring(5);
+                        if (!jsonString) continue;
+                        const data = JSON.parse(jsonString);
+
+                        statusText.textContent = data.message;
+                        progressBar.style.width = `${data.progress || 0}%`;
+
+                        if (data.status === 'complete') {
+                            showToast('Success', data.message, 'success');
+                            loadModelStatuses(); // Refresh the entire list
+                        } else if (data.status === 'error') {
+                            throw new Error(data.message);
+                        }
+                    }
+                }
+            } catch (error) {
+                progressBar.classList.add('bg-danger');
+                statusText.textContent = `Error: ${error.message}`;
+                showToast('Download Failed', error.message, 'danger');
+                // Re-enable button on failure to allow retry
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                btnText.innerHTML = '<i class="bi bi-download me-2"></i>Download';
+            }
+        }
+
+        async function loadHistory() {
+            document.getElementById('export-csv-btn').style.display = 'none'; // Hide on load
+            const accordionContainer = document.getElementById('history-accordion');
+            const tableBody = document.querySelector('#history-table tbody');
+            const loadingIndicator = document.getElementById('dashboard-loading');
+            
+            accordionContainer.innerHTML = '';
+            tableBody.innerHTML = '';
+            loadingIndicator.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/history');
+                if (!response.ok) throw new Error('Failed to fetch history.');
+                const history = await response.json();
+
+                if (history.length === 0) {
+                    accordionContainer.innerHTML = '<p class="text-center text-muted">No analysis history found.</p>';
+                    document.getElementById('list-view-container').style.display = 'block';
+                    document.getElementById('table-view-container').style.display = 'none';
+                    document.getElementById('table-view-btn').disabled = true;
+                } else {
+                    createHistoryTable(history);
+                    history.forEach(item => {
+                        const itemHtml = createHistoryItem(item);
+                        accordionContainer.insertAdjacentHTML('beforeend', itemHtml);
+                    });
+                    // Add event listeners to the new delete buttons
+                    document.querySelectorAll('.delete-history-btn').forEach(button => {
+                        button.addEventListener('click', deleteHistoryItem);
+                    });
+                    document.getElementById('table-view-btn').disabled = false;
+                    // Sync button visibility with the current view
+                    if (document.getElementById('table-view-btn').checked) {
+                        document.getElementById('list-view-container').style.display = 'none';
+                        document.getElementById('table-view-container').style.display = 'block';
+                        document.getElementById('export-csv-btn').style.display = 'inline-block';
+                    } else {
+                        document.getElementById('list-view-container').style.display = 'block';
+                        document.getElementById('table-view-container').style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading history:', error);
+                accordionContainer.innerHTML = `<p class="text-center text-danger">${error.message}</p>`;
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        async function populateModelDropdowns(config) {
+            try {
+                const response = await fetch('/api/available-models');
+                if (!response.ok) throw new Error('Failed to load model lists.');
+                const models = await response.json();
+                const defaultConfig = config || {}; // Use provided config or an empty object
+
+                const populateSelect = (selectId, modelList, useFullName = false) => {
+                    const select = document.getElementById(selectId);
+                    select.innerHTML = ''; // Clear existing options
+                    modelList.forEach(model => {
+                        const option = new Option(useFullName ? model.name : model.id, model.id);
+                        select.add(option);
+                    });
+                };
+
+                populateSelect('agent-model', models.agent_models, true);
+                populateSelect('default-agent-model', models.agent_models, true);
+                populateSelect('whisper-model', models.whisper_models, true);
+                populateSelect('default-whisper', models.whisper_models, false); // Whisper settings just use the ID
+
+                // Now that dropdowns are populated, apply the config
+                document.getElementById('agent-model').value = defaultConfig.default_agent_model;
+                document.getElementById('whisper-model').value = defaultConfig.default_whisper;
+                document.getElementById('default-agent-model').value = defaultConfig.default_agent_model;
+                document.getElementById('default-whisper').value = defaultConfig.default_whisper;
+
+            } catch (error) {
+                console.error('Error populating model dropdowns:', error);
+                showToast('Error', 'Could not populate model selection dropdowns.', 'danger');
+            }
+        }
+
+        async function loadAndApplyConfig() {
+            try {
+                const response = await fetch('/api/config');
+                if (!response.ok) throw new Error('Failed to load settings.');
+                const config = await response.json();
+
+                // Update Settings page
+                document.getElementById('default-agent-model').value = config.default_agent_model;
+                document.getElementById('default-whisper').value = config.default_whisper;
+                // Populate dropdowns first, then apply the loaded config
+                await populateModelDropdowns(config);
+
+                // Update Analyser page
+                document.getElementById('agent-model').value = config.default_agent_model;
+                document.getElementById('whisper-model').value = config.default_whisper;
+
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                showToast('Error', 'Could not load settings from the server.', 'danger');
+            }
+        }
+
+        function applyHistoryFilters() {
+            const dateFilter = document.getElementById('history-date-filter').value;
+            const keywordFilter = document.getElementById('history-search-filter').value.toLowerCase();
+
+            // Filter accordion view
+            const accordionItems = document.querySelectorAll('#history-accordion .accordion-item');
+            accordionItems.forEach(item => {
+                const itemTimestamp = item.getAttribute('data-timestamp');
+                const itemDate = itemTimestamp ? new Date(itemTimestamp).toISOString().split('T')[0] : '';
+                const itemText = item.textContent.toLowerCase();
+
+                const dateMatch = !dateFilter || (itemDate === dateFilter);
+                const keywordMatch = !keywordFilter || itemText.includes(keywordFilter);
+
+                item.style.display = (dateMatch && keywordMatch) ? 'block' : 'none';
+            });
+
+            // Filter table view
+            const tableRows = document.querySelectorAll('#history-table tbody tr');
+            tableRows.forEach(row => {
+                const itemTimestamp = row.getAttribute('data-timestamp');
+                const itemDate = itemTimestamp ? new Date(itemTimestamp).toISOString().split('T')[0] : '';
+                const itemText = row.textContent.toLowerCase();
+
+                const dateMatch = !dateFilter || (itemDate === dateFilter);
+                const keywordMatch = !keywordFilter || itemText.includes(keywordFilter);
+
+                row.style.display = (dateMatch && keywordMatch) ? '' : 'none';
+            });
+        }
+
+        function filterHistoryByDate(filterDate) {
+            applyHistoryFilters();
+        }
+
+        function filterHistoryByKeyword(keyword) {
+            applyHistoryFilters();
+        }
+
+        async function deleteHistoryItem(event) {
+            event.stopPropagation(); // Prevent accordion from toggling
+            const button = event.currentTarget;
+            const itemId = button.getAttribute('data-id');
+
+            if (!confirm('Are you sure you want to delete this history item?')) return;
+
+            try {
+                const response = await fetch(`/api/history/${itemId}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Failed to delete item from server.');
+                
+                // Remove from both views
+                const accordionItem = document.getElementById(`item-${itemId}`);
+                if (accordionItem) accordionItem.remove();
+                const tableRow = document.querySelector(`#history-table tr[data-id="${itemId}"]`);
+                if (tableRow) tableRow.remove();
+
+                showToast('Success', 'History item deleted.', 'success');
+            } catch (error) {
+                showToast('Error', error.message, 'danger');
+            }
+        }
+
+        function parseSummary(summaryText) {
+            const data = {};
+            const fields = ["Customer Name", "Issue Category", "Key Information", "Payment Date & Time", "Payment Amount", "Payer Details", "Payee Details", "UPI Transaction ID", "Recommended Next Step"];
+            
+            if (!summaryText) return Object.fromEntries(fields.map(f => [f, 'N/A']));
+
+            fields.forEach(field => {
+                // Regex to find "**Field:**" and capture everything until the next "**Field:**" or end of string
+                const regex = new RegExp(`\\*\\*${field}:\\*\\*\\s*([\\s\\S]*?)(?=\\s*\\*\\*([A-Z][a-z]+|UPI)|$)`);
+                const match = summaryText.match(regex);
+                let value = match ? match[1].trim().replace(/^₹\s*/, '') : 'N/A'; // Also strip currency symbol here
+                // Clean up customer name
+                if (field === "Customer Name") {
+                    value = value.split(/[\n(]/)[0].trim(); // Take only the first line/part before parenthesis
+                }
+                data[field] = value;
+            });
+            return data;
+        }
+
+        function createHistoryTable(history) {
+            const table = document.getElementById('history-table');
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            thead.innerHTML = `
+                <tr>
+                    <th data-sort-dir="desc">Date <i class="bi bi-arrow-down"></i></th>
+                    <th>Customer Name</th>
+                    <th>Issue Category</th>
+                    <th>Payment Date</th>
+                    <th>Payer</th>
+                    <th>Payee</th>
+                    <th>Amount (₹)</th>
+                    <th>UPI Transaction ID</th>
+                </tr>
+            `;
+            tbody.innerHTML = '';
+
+            history.forEach(item => {
+                const summaryData = parseSummary(item.summary);
+                const row = document.createElement('tr');
+                row.setAttribute('data-id', item.id);
+                row.setAttribute('data-timestamp', item.timestamp);
+                row.innerHTML = `
+                    <td class="text-nowrap">${new Date(item.timestamp).toLocaleDateString()}</td>
+                    <td>${summaryData['Customer Name'] || 'N/A'}</td>
+                    <td>${summaryData['Issue Category']}</td>
+                    <td>${summaryData['Payment Date & Time']}</td>
+                    <td>${summaryData['Payer Details']}</td>
+                    <td>${summaryData['Payee Details']}</td>
+                    <td>${summaryData['Payment Amount']}</td>
+                    <td>${summaryData['UPI Transaction ID']}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Add export functionality after table is created
+            document.getElementById('export-csv-btn').onclick = () => exportTableToCSV('Interjet-Audit-Log.csv');
+            
+            // Add sorting functionality
+            thead.querySelectorAll('th').forEach((header, index) => {
+                header.addEventListener('click', () => {
+                    sortTable(table, index);
+                });
+                header.style.cursor = 'pointer';
+            });
+            // Initial sort by date descending
+            sortTable(table, 0);
+        }
+
+        function sortTable(table, columnIndex) {
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const header = table.querySelector(`thead th:nth-child(${columnIndex + 1})`);
+            const currentDir = header.getAttribute('data-sort-dir') || 'asc';
+            const newDir = currentDir === 'asc' ? 'desc' : 'asc';
+
+            // Reset other headers
+            table.querySelectorAll('thead th').forEach(th => {
+                th.removeAttribute('data-sort-dir');
+                th.querySelector('i')?.remove();
+            });
+
+            header.setAttribute('data-sort-dir', newDir);
+            header.insertAdjacentHTML('beforeend', ` <i class="bi ${newDir === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'}"></i>`);
+
+            rows.sort((a, b) => {
+                const aText = a.cells[columnIndex].innerText;
+                const bText = b.cells[columnIndex].innerText;
+                
+                // Attempt to sort as dates or numbers if possible
+                const aVal = Date.parse(aText) || (isFinite(aText) ? parseFloat(aText) : aText.toLowerCase());
+                const bVal = Date.parse(bText) || (isFinite(bText) ? parseFloat(bText) : bText.toLowerCase());
+
+                if (aVal < bVal) return newDir === 'asc' ? -1 : 1;
+                if (aVal > bVal) return newDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function exportTableToCSV(filename) {
+            const csv = [];
+            const table = document.getElementById("history-table");
+            const rows = table.querySelectorAll("tr");
+            
+            for (const row of rows) {
+                // Only include visible rows in the export
+                if (row.style.display === 'none') continue;
+
+                const rowData = [];
+                const cols = row.querySelectorAll("td, th");
+                
+                for (const col of cols) {
+                    // Replace commas to avoid CSV format issues and trim whitespace
+                    let data = col.innerText.replace(/,/g, ";").trim();
+                    // Wrap in double quotes to handle any remaining special characters
+                    rowData.push(`"${data}"`);
+                }
+                csv.push(rowData.join(","));
+            }
+
+            const csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+            const downloadLink = document.createElement("a");
+            
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        function createHistoryItem(item) {
+            const formattedDate = new Date(item.timestamp).toLocaleString();
+            const summary = item.summary ? item.summary.replace(/\n/g, '<br>') : 'No summary available.';
+            const transcription = item.transcription || 'No transcription available.';
+            const ocr = Array.isArray(item.ocr) ? item.ocr.join('\n') : (item.ocr || 'No text found in image.');
+
+            return `
+                <div class="accordion-item card-glass" id="item-${item.id}" data-timestamp="${item.timestamp}">
+                    <h2 class="accordion-header d-flex align-items-center" id="heading-${item.id}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${item.id}" aria-expanded="false" aria-controls="collapse-${item.id}">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold text-primary"><i class="bi bi-clock-history me-2"></i>${formattedDate}</span>
+                                </div>
+                                <div class="d-flex align-items-center flex-shrink-0 me-3">
+                                    <span class="small text-muted text-nowrap overflow-hidden text-truncate d-none d-sm-inline" style="max-width: 300px;">
+                                        <i class="bi bi-mic-fill"></i> ${item.audio_file}
+                                        ${item.screenshot_file !== 'N/A' ? `<i class="bi bi-image ms-2"></i> ${item.screenshot_file}` : ''}
+                                    </span>
+                                </div>
+                            </div>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger delete-history-btn ms-auto me-2" data-id="${item.id}" title="Delete Item"><i class="bi bi-trash"></i></button>
+                    </h2>
+                    <div id="collapse-${item.id}" class="accordion-collapse collapse" aria-labelledby="heading-${item.id}" data-bs-parent="#history-accordion">
+                        <div class="accordion-body">
+                            <div class="mb-3">
+                                <h6><i class="bi bi-card-text me-2"></i>AI Summary</h6>
+                                <p class="small" style="white-space: pre-wrap;">${summary}</p>
+                            </div>
+                            <hr>
+                            <div class="mb-3">
+                                <h6><i class="bi bi-quote me-2"></i>Audio Transcription</h6>
+                                <p class="small text-muted">${transcription}</p>
+                            </div>
+                            <hr>
+                            <div>
+                                <h6><i class="bi bi-file-earmark-font me-2"></i>Image Text (OCR)</h6>
+                                <pre class="small bg-body-tertiary p-2 rounded">${ocr}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

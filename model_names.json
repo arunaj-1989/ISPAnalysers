@@ -1,0 +1,40 @@
+{
+    "default_agent_model": "phi3:mini",
+    "default_whisper": "base",
+    "agent_models": [
+        {
+            "id": "phi3:mini",
+            "name": "Phi-3 Mini (Fast, ~4GB VRAM)"
+        },
+        {
+            "id": "llama3",
+            "name": "Llama 3 (Default, ~8GB VRAM)"
+        },
+        {
+            "id": "mistral",
+            "name": "Mistral (Alternative, ~8GB VRAM)"
+        },
+        {
+            "id": "codellama:13b",
+            "name": "CodeLlama 13B (Large, ~13GB VRAM)"
+        }
+    ],
+    "whisper_models": [
+        {
+            "id": "tiny",
+            "name": "Tiny (Fastest, ~1GB VRAM)"
+        },
+        {
+            "id": "base",
+            "name": "Base (Fast, ~1GB VRAM)"
+        },
+        {
+            "id": "small",
+            "name": "Small (Balanced, ~2GB VRAM)"
+        },
+        {
+            "id": "medium",
+            "name": "Medium (~5GB VRAM)"
+        }
+    ]
+}

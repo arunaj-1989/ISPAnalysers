@@ -1,29 +1,64 @@
-# ISP Analysers
+# Interjet Support Analyser
 
-This is a Streamlit web application designed for analyzing ISP data. It integrates powerful AI models to extract and process information from various sources.
+This is a web application designed for analyzing ISP customer support interactions. It integrates powerful AI models to extract and process information from audio calls and screenshots, providing a comprehensive summary and audit trail.
 
 ## ✨ Features
 
--   **🤖 AI-Powered Analysis**: Uses a local Large Language Model (Ollama with `phi3`) to automatically categorize issues and suggest next steps.
--   **🎤 Audio Transcription**: Transcribes speech from audio files into text using `openai-whisper`.
--   **🖼️ Image-to-Text**: Extracts text from images (like screenshots of router errors or payment details) using `EasyOCR`.
--   **⚙️ GPU Accelerated**: Leverages NVIDIA GPUs via CUDA for fast and efficient audio transcription (Whisper) and text extraction (EasyOCR).
+-   **Modern Web UI**: A responsive frontend built with Flask and Bootstrap, featuring a dark/light theme switcher.
+-   **🤖 Configurable AI Analysis**: Uses local Large Language Models via Ollama to automatically categorize issues and suggest next steps. The model used for analysis can be configured in the settings.
+-   **🎤 Audio Transcription**: Transcribes speech from audio files into text using `openai-whisper`, with selectable model sizes for balancing speed and accuracy.
+-   **🖼️ Image-to-Text (OCR)**: Extracts text from images (like payment screenshots) using `EasyOCR`.
+-   **⚙️ GPU Accelerated**: Leverages NVIDIA GPUs via CUDA for fast and efficient AI processing.
+-   **📊 Interactive Dashboard**: Review, search, sort, and filter the entire analysis history. Includes an audit-friendly table view with a CSV export option.
+-   **🔧 Centralized Settings**: A dedicated page to configure default AI models and monitor real-time hardware utilization (GPU, CPU, RAM, Storage).
+-   **🚀 Real-time Progress**: The analysis workflow provides live progress updates using Server-Sent Events (SSE).
 
 ## Architecture Overview
 
 The application uses a combination of technologies:
 
--   **Frontend**: `Streamlit` for the user interface.
--   **Speech-to-Text**: `openai-whisper` runs on the GPU for fast transcription and translation.
--   **Text Extraction**: `EasyOCR` handles text extraction from images.
--   **AI Analysis**: `Ollama` serves a local language model (`phi3`) for text analysis.
--   **Backend Logic**: A persistent background worker (`DecodeWorker`) processes audio independently of UI refreshes.
+-   **Backend**: A `Flask` server written in Python handles file uploads, AI processing, and API endpoints.
+-   **Frontend**: A custom single-page interface built with `HTML`, `JavaScript`, and `Bootstrap`.
+-   **Speech-to-Text**: `openai-whisper` for audio transcription.
+-   **Text Extraction (OCR)**: `EasyOCR` for image-to-text conversion.
+-   **AI Analysis**: `Ollama` serves local language models (e.g., Llama 3, Phi-3) for summarization.
+-   **Data Persistence**: Analysis history is stored in a local `history.json` file, and model configurations are saved in `config.json`.
+
+```mermaid
+graph TD
+    subgraph "User`s Browser"
+        A["Frontend <br> (HTML/JS/Bootstrap)"]
+    end
+
+    subgraph "Backend Server"
+        B["Flask App <br> (app.py)"]
+        
+        subgraph "AI/ML Models"
+            C["EasyOCR <br> (Image to Text)"]
+            D["Whisper <br> (Audio to Text)"]
+            E["Ollama <br> (LLM/SLM for Summary)"]
+        end
+
+        subgraph "Data Storage"
+            F["config.json <br> (Settings)"]
+            G["history.json <br> (Audit Trail)"]
+        end
+    end
+
+    A -- "File Uploads & API Requests" --> B
+    B -- "Process Image" --> C
+    B -- "Transcribe Audio" --> D
+    B -- "Generate Summary" --> E
+    B -- "Read/Write Settings" --> F
+    B -- "Read/Write History" --> G
+    B -- "Serves UI & Streams Results" --> A
+```
 
 ##  Prerequisites
 
 ### Hardware
 
--   **Server**: A server running a Linux distribution (Ubuntu is recommended).
+-   **Server**: A server running a Linux or Windows distribution.
 -   **GPU**: An NVIDIA GPU with CUDA support is **required** for optimal performance.
 
 ### Software
@@ -35,54 +70,114 @@ The application uses a combination of technologies:
 
 ---
 
-## 🚀 Installation Guide
+## 🚀 Local Installation & Setup
 
-### For Linux (Ubuntu)
-
-1.  **Clone the Repository**: Get the project files onto your server.
-
+1.  **Clone the Repository**:
     ```bash
-    # Replace with your repository's URL
     git clone <your-repository-url>
-    cd <repository-directory>
+    cd ISPAnalysers
     ```
 
-2.  **Run the Setup Script**: This script handles all dependencies, Python environment setup, and AI model downloads.
-
+2.  **Create a Virtual Environment**:
     ```bash
-    chmod +x setup_server.sh
-    ./setup_server.sh
-    ```
-    The script will guide you if any dependencies are missing and will set up everything required to run the application.
-
-### For Windows
-
-1.  **Clone the Repository**: Get the project files onto your machine.
-2.  **Set PowerShell Execution Policy**: By default, Windows may prevent you from running local PowerShell scripts. To fix this, open a PowerShell terminal and run the following command once:
-
-    ```powershell
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+    python -m venv .venv
     ```
 
-3.  **Run the Setup Script**: In the same PowerShell terminal, run the setup script. It will check for dependencies, set up the environment, and download all necessary models.
+3.  **Activate the Environment**:
+    -   **Windows**: `.\.venv\Scripts\activate`
+    -   **Linux/macOS**: `source .venv/bin/activate`
 
-    ```powershell
-    .\setup_server.ps1
+4.  **Install Dependencies**:
+    ```bash
+    pip install -r requirements.txt
     ```
+    *(Note: You will need to create a `requirements.txt` file containing libraries like `flask`, `torch`, `easyocr`, `openai-whisper`, `ollama`, `psutil`, etc.)*
 
-## ▶️ Run the Application
+5.  **Run the Application**:
+    ```bash
+    python app.py
+    ```
+    The application will be accessible at `http://127.0.0.1:5000`.
 
-After the setup script has completed successfully, you can start the application using the provided run scripts.
+---
 
-### For Linux (Ubuntu)
+## 🔌 Using the API
 
-The `run_app.sh` script will activate the correct environment and launch the app.
+The application exposes a REST API endpoint for programmatic analysis, which streams progress and results via Server-Sent Events (SSE).
 
+**Endpoint**: `POST /api/process`
+**Port**: `5000` (default for Flask)
+
+### Request Body
+
+You must provide at least one file (`audio` or `screenshot`). You can also specify which AI models to use.
+
+-   `audio` (optional): The customer call audio file (e.g., `.mp3`, `.wav`).
+-   `screenshot` (optional): An image file for evidence (e.g., a payment confirmation).
+-   `model` (optional): The name of the Whisper model to use (e.g., `base`, `small`).
+-   `agent_model` (optional): The name of the Ollama agent model to use (e.g., `llama3`, `phi3:mini`).
+
+### Example API Call with `curl`
+
+This example sends an audio file and a screenshot for analysis.
 ```bash
-chmod +x run_app.sh
-./run_app.sh
+curl -N -X POST http://127.0.0.1:5000/api/process \
+  -F "audio=@/path/to/renewal.wav" \
+  -F "screenshot=@/path/to/payment.png"
 ```
 
-Your application will be accessible in a web browser at `http://<your-server-ip>:8501`.
+### Example API Call with Python
 
-**Note**: You may need to configure your server's firewall to allow incoming traffic on port `8501`. For Ubuntu's `ufw`, the command would be `sudo ufw allow 8501`.
+This example shows how to call the API using the `requests` library in Python.
+
+```python
+import requests
+
+# The server's IP address and port
+url = "http://<your-server-ip>:5000/analyze"
+
+# Define the paths to your files
+audio_file_path = "/path/to/customer_call.mp3"
+image_files_paths = [
+    "/path/to/router_lights.jpg",
+    "/path/to/payment_screenshot.png"
+]
+
+# Prepare the files for the multipart request
+files = [("image", (open(path, "rb"))) for path in image_files_paths]
+files.append(("audio", open(audio_file_path, "rb")))
+
+try:
+    response = requests.post(url, files=files)
+    response.raise_for_status()  # Raise an exception for bad status codes
+    
+    # Print the JSON response from the server
+    print(response.json())
+
+except requests.exceptions.RequestException as e:
+    print(f"An error occurred: {e}")
+
+finally:
+    # Ensure all files are closed
+    for _, file_tuple in files:
+        file_tuple.close()
+```
+
+### Example JSON Response
+
+The API will return a JSON object containing the transcription and the final analysis.
+
+```json
+{
+  "transcription": "Hello my internet is not working, the light is red...",
+  "analysis": {
+    "customer_name": "N/A",
+    "issue_category": "Connectivity Issue",
+    "key_info": {
+      "symptoms": ["internet not working", "light is red"]
+    },
+    "evidence_summary": "Image analysis of 'router_lights.jpg' shows a red light, indicating a connection problem.",
+    "recommendation": "Customer is facing a connectivity issue. Router's 'Internet' light is red. A restart did not solve the problem. Recommended next step: Schedule a technician visit."
+  }
+}
+```

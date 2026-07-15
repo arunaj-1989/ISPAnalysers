@@ -147,18 +147,17 @@ This example shows how to call the API using the `requests` library in Python.
 import requests
 
 # The server's IP address and port
-url = "http://<your-server-ip>:5000/analyze"
-
+url = "http://<your-server-ip>:5000/api/process"
 # Define the paths to your files
 audio_file_path = "/path/to/customer_call.mp3"
-image_files_paths = [
-    "/path/to/router_lights.jpg",
-    "/path/to/payment_screenshot.png"
-]
+screenshot_file_path = "/path/to/payment_screenshot.png" # Assuming only one screenshot is expected
 
 # Prepare the files for the multipart request
-files = [("image", (open(path, "rb"))) for path in image_files_paths]
-files.append(("audio", open(audio_file_path, "rb")))
+files = {
+    "audio": open(audio_file_path, "rb"),
+    "screenshot": open(screenshot_file_path, "rb")
+}
+
 
 try:
     response = requests.post(url, files=files)
@@ -170,10 +169,9 @@ try:
 except requests.exceptions.RequestException as e:
     print(f"An error occurred: {e}")
 
-finally:
-    # Ensure all files are closed
-    for _, file_tuple in files:
-        file_tuple.close()
+finally: # Ensure all files are closed
+    files["audio"].close()
+    files["screenshot"].close()
 ```
 
 ### Example JSON Response

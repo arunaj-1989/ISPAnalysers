@@ -28,7 +28,7 @@ $PythonVersionMinor = 11
 $VenvDir = Join-Path $ScriptDir ".venv"
 $RequirementsFile = Join-Path $ScriptDir "requirements.txt"
 $FlaskScript = Join-Path $ScriptDir "app.py"
-$OllamaModel = "llama3" # Match the model used in the API
+$OllamaModel = "phi3:mini" # Match the default agent model
 
 # --- Helper Functions ---
 function Write-Log {
@@ -149,8 +149,24 @@ if (-not (Test-Path -Path $RequirementsFile)) {
     exit 1
 }
 try {
-    & $PipExe install --upgrade pip
-    & $PipExe install -r $RequirementsFile
+    Write-Log "Upgrading pip..."
+    & $PythonVenvExe -m pip install --upgrade pip
+
+    # Check if the correct PyTorch version is already installed
+    $torchCheckScript = "import torch; print(f'{torch.__version__}+{torch.version.cuda}' if torch.cuda.is_available() else torch.__version__)"
+    $installedTorchVersion = (& $PythonVenvExe -c $torchCheckScript -ErrorAction SilentlyContinue)
+
+    if ($installedTorchVersion -and $installedTorchVersion -like "*+12.1*") {
+        Write-Log "Correct PyTorch for CUDA 12.1 is already installed. Skipping re-installation." -Color Green
+    }
+    else {
+        Write-Log "Ensuring correct PyTorch version for CUDA is installed..." -Color Yellow
+        # Force reinstall of PyTorch with the correct CUDA version to fix any inconsistencies.
+        # This command is for CUDA 12.1, as recommended in the README.
+        & $PipExe install --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    }
+
+    & $PipExe install -r $RequirementsFile # Install other dependencies
     Write-Log "Dependencies installed successfully." -Color Green
 }
 catch {
@@ -181,5 +197,6 @@ if (-not (Test-Path -Path $FlaskScript)) {
     exit 1
 }
 
-Write-Log "You can access the app at http://127.0.0.1:5000. Press CTRL+C in this window to stop the server." -Color Cyan
+Write-Log "You can access the app at http://127.0.0.1:5000" -Color Cyan
+Write-Log "Press CTRL+C in this window to stop the server." -Color Cyan
 & $PythonVenvExe $FlaskScript

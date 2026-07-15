@@ -17,6 +17,14 @@ except ImportError:
 
 ocr_model = None
 
+@st.cache_data(ttl=300)
+def get_ollama_models():
+    """Returns a list of locally available Ollama models."""
+    if not OLLAMA_AVAILABLE:
+        return []
+    return [m["name"] for m in ollama.list()["models"]]
+
+
 def get_ocr_model():
     """Initializes and returns the PaddleOCR model, caching it in a global variable."""
     global ocr_model
@@ -212,6 +220,7 @@ def run_ai_analysis(english_text, worker, screenshot_file, progress_bar):
                 st.info(category)
                 st.markdown("##### Suggested Next Step")
                 st.success(fix)
+
 
 st.set_page_config(page_title="Speech Analyser", layout="wide")
 

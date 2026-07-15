@@ -309,19 +309,14 @@
                                         <div>
                                             <label for="agent-model" class="form-label small">Agent Model</label>
                                             <select class="form-select form-select-sm" id="agent-model" name="agent_model" form="upload-form">
-                                                <option value="phi3:mini">Phi-3 Mini (Fast, ~4GB VRAM)</option>
-                                                <option value="llama3" selected>Llama 3 (Default, ~8GB VRAM)</option>
-                                                <option value="mistral">Mistral (Alternative, ~8GB VRAM)</option>
-                                                <option value="codellama:13b">CodeLlama 13B (Large, ~13GB VRAM)</option>
+                                                <!-- Options will be populated by JavaScript -->
                                             </select>
                                         </div>
                                         <div class="row g-2 align-items-end">
                                             <div class="col-8">
                                                 <label for="whisper-model" class="form-label small">Whisper Model</label>
                                                 <select class="form-select form-select-sm" id="whisper-model" name="model" form="upload-form">
-                                                    <option value="base" selected>Base (Fastest, ~1GB VRAM)</option>
-                                                    <option value="small">Small (Balanced, ~2GB VRAM)</option>
-                                                    <option value="medium">Medium (~5GB VRAM)</option>
+                                                    <!-- Options will be populated by JavaScript -->
                                                 </select>
                                             </div>
                                             <div class="col-4">
@@ -337,8 +332,9 @@
 
                 <!-- Workflow View -->
                 <div id="workflow" class="card card-glass mb-4" style="display: none;">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Analysis in Progress...</h5>
+                        <button id="cancel-analysis-btn" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Cancel</button>
                     </div>
                     <div class="card-body p-4">
                         <div class="row text-center">
@@ -528,30 +524,42 @@
 
                 <!-- Model Configuration -->
                 <h5 class="mb-3">Model Configuration</h5>
-                <div class="card card-glass">
+                <div class="card card-glass mb-4">
                     <div class="card-body">
                         <form id="settings-form">
                             <div class="row">
                                 <div class="col-md-6 mb-3"><label for="default-agent-model" class="form-label">Default Agent Model</label><select id="default-agent-model" class="form-select">
-                                    <option value="phi3:mini">Phi-3 Mini (Fast, ~4GB VRAM)</option>
-                                    <option value="llama3">Llama 3 (Default, ~8GB VRAM)</option>
-                                    <option value="mistral">Mistral (Alternative, ~8GB VRAM)</option>
-                                    <option value="codellama:13b">CodeLlama 13B (Large, ~13GB VRAM)</option>
+                                    <!-- Options will be populated by JavaScript -->
                                 </select></div>
-                                <div class="col-md-6 mb-3"><label for="default-whisper" class="form-label">Default Whisper Model</label><select id="default-whisper" class="form-select"><option value="tiny">Tiny</option><option value="base" selected>Base</option><option value="small">Small</option><option value="medium">Medium</option></select></div>
+                                <div class="col-md-6 mb-3"><label for="default-whisper" class="form-label">Default Whisper Model</label><select id="default-whisper" class="form-select"><!-- Options will be populated by JavaScript --></select></div>
                             </div>
                             <div class="d-flex justify-content-end gap-2 mt-3">
-                                <button type="button" id="cache-models-btn" class="btn btn-outline-secondary"><span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span><i class="bi bi-box-arrow-in-down me-1"></i>Cache Default Models</button>
                                 <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle-fill me-1"></i>Save Configuration</button>
                             </div>
                         </form>
-                        <div id="cache-progress-container" class="mt-3" style="display: none;">
-                            <div class="d-flex justify-content-between">
-                                <small id="cache-status-text">Caching models...</small>
-                                <small><span id="cache-progress-percent">0</span>%</small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-lg-6 mb-4">
+                        <h5 class="mb-3">Agent Model Downloader (Ollama)</h5>
+                        <div class="card card-glass">
+                            <div class="card-body">
+                                <p class="card-text small text-muted">Pre-download agent models to make them available for analysis.</p>
+                                <div id="agent-model-downloader-list" class="list-group list-group-flush">
+                                    <!-- List will be populated by JavaScript -->
+                                </div>
                             </div>
-                            <div class="progress" style="height: 5px;">
-                                <div id="cache-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6 mb-4">
+                        <h5 class="mb-3">Transcription Model Downloader (Whisper)</h5>
+                        <div class="card card-glass">
+                            <div class="card-body">
+                                <p class="card-text small text-muted">Pre-download transcription models for offline use.</p>
+                                <div id="whisper-model-downloader-list" class="list-group list-group-flush">
+                                    <!-- List will be populated by JavaScript -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -740,9 +748,12 @@
             }
         }
 
+        let analysisAbortController = null;
+
         // Main submission handler
         document.getElementById('upload-form').addEventListener('submit', async function(event) {
             event.preventDefault();
+
 
             const audioFile = document.querySelector('#audio').files[0];
             const screenshotFile = document.querySelector('#screenshot').files[0];
@@ -754,6 +765,9 @@
 
             const form = event.target;
             const formData = new FormData();
+
+            analysisAbortController = new AbortController();
+            const signal = analysisAbortController.signal;
 
             if (screenshotFile) {
                 formData.append('screenshot', screenshotFile);
@@ -813,6 +827,7 @@
             try {
                 const response = await fetch('/api/process', {
                     method: 'POST',
+                    signal: signal,
                     body: formData
                 });
 
@@ -907,6 +922,11 @@
                 firstTab.show();
 
             } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('Analysis fetch aborted by user.');
+                    return; // Stop further processing
+                }
+                console.error("Analysis failed:", error);
                 console.error("Analysis failed:", error); // Always log the full error for debugging
                 let friendlyMessage = 'An unexpected error occurred. Please check the browser console for details.';
                 if (error instanceof TypeError && error.message.includes('fetch')) {
@@ -924,6 +944,7 @@
                 document.getElementById('analyser-controls-view').style.display = 'block';
                 uploadCard.style.display = 'block';
                 updateSystemInfo(); // Refresh system stats after processing
+                analysisAbortController = null; // Reset controller
             }
         });
 
@@ -947,7 +968,30 @@
             startSystemInfoUpdates();
             setupNavigation();
             loadAndApplyConfig(); // Load config on initial startup
+            populateModelDropdowns(); // Populate dropdowns on startup
+            // populateModelDropdowns is now called inside loadAndApplyConfig
 
+        });
+
+        // Cancel Analysis Button
+        document.getElementById('cancel-analysis-btn').addEventListener('click', async () => {
+            if (analysisAbortController) {
+                analysisAbortController.abort();
+                showToast('Cancelling...', 'The analysis has been cancelled.', 'warning');
+            }
+
+            // Reset the UI immediately
+            const workflowDiv = document.getElementById('workflow');
+            const uploadCard = document.getElementById('upload-card');
+            const controlsView = document.getElementById('analyser-controls-view');
+
+            workflowDiv.style.display = 'none';
+            controlsView.style.display = 'block';
+            uploadCard.style.display = 'block';
+            resetAnalysisUI();
+
+            // Also trigger the GPU cache clearing
+            document.getElementById('clear-gpu-btn').click();
         });
         document.getElementById('refresh-status-btn').addEventListener('click', updateSystemInfo);
 
@@ -966,7 +1010,7 @@
             document.getElementById('result').style.display = 'none';
             document.getElementById('error').style.display = 'none';
             resetAnalysisUI();
-            document.getElementById('whisper-model').value = 'base'; // Reset dropdown
+            loadAndApplyConfig(); // Reset dropdowns to saved defaults
             showToast('Session Cleared', 'The results have been cleared from the view.');
         });
 
@@ -1041,6 +1085,9 @@
                 navAnalyser.classList.remove('active');
                 navDashboard.classList.remove('active');
                 loadAndApplyConfig(); // Also load settings when navigating to the page
+                populateModelDropdowns(); // Ensure dropdowns are populated
+                // populateModelDropdowns is now called inside loadAndApplyConfig
+                loadModelStatuses();
             });
 
             // Add event listener for the date filter
@@ -1086,65 +1133,180 @@
                 }
             });
 
-            // Cache models button
-            document.getElementById('cache-models-btn').addEventListener('click', async (e) => {
-                const button = e.currentTarget;
-                const spinner = button.querySelector('.spinner-border');
-                const progressContainer = document.getElementById('cache-progress-container');
-                const progressBar = document.getElementById('cache-progress-bar');
-                const progressText = document.getElementById('cache-status-text');
-                const progressPercent = document.getElementById('cache-progress-percent');
+        }
 
-                button.disabled = true;
-                spinner.classList.remove('d-none');
-                progressContainer.style.display = 'block';
-                progressBar.style.width = '0%';
-                progressBar.classList.remove('bg-danger', 'bg-success');
-                progressText.textContent = 'Initiating...';
-                progressPercent.textContent = '0';
+        async function loadModelStatuses() {
+            const agentList = document.getElementById('agent-model-downloader-list');
+            const whisperList = document.getElementById('whisper-model-downloader-list');
+            const loadingHTML = `<div class="list-group-item text-muted text-center"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading...</div>`;
+            agentList.innerHTML = loadingHTML;
+            whisperList.innerHTML = loadingHTML;
 
-                try {
-                    const response = await fetch('/api/cache-models', { method: 'POST' });
-                    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+            try {
+                const response = await fetch('/api/models-status');
+                if (!response.ok) throw new Error(`Server error: ${response.status}`);
+                const data = await response.json();
 
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
+                if (data.error) throw new Error(data.error);
 
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        
-                        const lines = decoder.decode(value, { stream: true }).split('\n\n');
-                        for (const line of lines) {
-                            if (!line.startsWith('data: ')) continue;
-                            const data = JSON.parse(line.substring(6));
+                agentList.innerHTML = '';
+                Object.entries(data.agent_models).forEach(([name, info]) => {
+                    agentList.insertAdjacentHTML('beforeend', createModelListItem(name, info.status, 'agent'));
+                });
 
-                            if (data.status === 'error') {
-                                throw new Error(data.message);
-                            }
+                whisperList.innerHTML = '';
+                Object.entries(data.whisper_models).forEach(([name, info]) => {
+                    whisperList.insertAdjacentHTML('beforeend', createModelListItem(name, info.status, 'whisper'));
+                });
 
-                            progressText.textContent = data.message;
-                            if (data.progress !== undefined) {
-                                progressBar.style.width = `${data.progress}%`;
-                                progressPercent.textContent = data.progress;
-                            }
+                // Add event listeners to all new download buttons
+                document.querySelectorAll('.download-model-btn').forEach(btn => {
+                    btn.addEventListener('click', handleModelDownload);
+                });
 
-                            if (data.status === 'complete') {
-                                progressBar.style.width = '100%';
-                                progressBar.classList.add('bg-success');
-                                showToast('Success', data.message, 'success');
-                            }
+                // Add event listeners to all new delete buttons
+                document.querySelectorAll('.delete-model-btn').forEach(btn => {
+                    btn.addEventListener('click', handleModelDelete);
+                });
+
+            } catch (error) {
+                const errorHTML = `<div class="list-group-item text-danger text-center"><i class="bi bi-exclamation-triangle-fill me-2"></i>${error.message}</div>`;
+                agentList.innerHTML = errorHTML;
+                whisperList.innerHTML = errorHTML;
+            }
+        }
+
+        function createModelListItem(name, status, type) {
+            const isDownloaded = status === 'downloaded';
+            // Corrected logic: Use a single button for download/downloaded status
+            const downloadButton = `
+                <button class="btn btn-sm ${isDownloaded ? 'btn-outline-success' : 'btn-primary'} download-model-btn" data-model-name="${name}" data-model-type="${type}" ${isDownloaded ? 'disabled' : ''}>
+                    <span class="btn-text"><i class="bi ${isDownloaded ? 'bi-check-circle-fill' : 'bi-download'} me-2"></i>${isDownloaded ? 'Downloaded' : 'Download'}</span>
+                    <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                </button>
+            `;
+            // The delete button logic was correct, but is included for clarity
+            const deleteButton = `
+                <button class="btn btn-sm btn-outline-danger delete-model-btn" data-model-name="${name}" data-model-type="${type}" title="Delete ${name}" ${!isDownloaded ? 'disabled' : ''}>
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+
+            return `
+                <div class="list-group-item d-flex justify-content-between align-items-center bg-transparent border-start-0 border-end-0 px-0" id="model-item-${type}-${name.replace(':','-')}">
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">${name}</div>
+                        <div class="progress" style="height: 5px; display: none;" role="progressbar">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                        </div>
+                        <small class="status-text text-muted"></small>
+                    </div>
+                    <div class="ms-3 d-flex gap-2">
+                        ${downloadButton}
+                        ${deleteButton}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function handleModelDelete(event) {
+            const btn = event.currentTarget;
+            const modelName = btn.dataset.modelName;
+            const modelType = btn.dataset.modelType;
+
+            if (!confirm(`Are you sure you want to delete the model '${modelName}'? This cannot be undone.`)) {
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+            try {
+                const response = await fetch(`/api/models/${modelType}/${modelName}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to delete model.');
+                }
+                showToast('Success', `Model '${modelName}' deleted successfully.`, 'success');
+                loadModelStatuses(); // Refresh the list to show the change
+            } catch (error) {
+                showToast('Error', error.message, 'danger');
+                // Restore button on failure
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-trash"></i>';
+            }
+        }
+
+        async function handleModelDownload(event) {
+            const btn = event.currentTarget;
+            const modelName = btn.dataset.modelName;
+            const modelType = btn.dataset.modelType;
+
+            const itemEl = document.getElementById(`model-item-${modelType}-${modelName.replace(':','-')}`);
+            const btnText = btn.querySelector('.btn-text');
+            const spinner = btn.querySelector('.spinner-border');
+            const progressContainer = itemEl.querySelector('.progress');
+            const progressBar = itemEl.querySelector('.progress-bar');
+            const statusText = itemEl.querySelector('.status-text');
+
+            // UI updates for loading state
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btnText.textContent = 'Downloading...';
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressBar.classList.remove('bg-danger');
+            statusText.textContent = 'Starting...';
+
+            try {
+                const payload = {
+                    agent_models: modelType === 'agent' ? [modelName] : [],
+                    whisper_models: modelType === 'whisper' ? [modelName] : []
+                };
+
+                const response = await fetch('/api/cache-models', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n\n').filter(line => line.startsWith('data:'));
+
+                    for (const line of lines) {
+                        const jsonString = line.substring(5);
+                        if (!jsonString) continue;
+                        const data = JSON.parse(jsonString);
+
+                        statusText.textContent = data.message;
+                        progressBar.style.width = `${data.progress || 0}%`;
+
+                        if (data.status === 'complete') {
+                            showToast('Success', data.message, 'success');
+                            loadModelStatuses(); // Refresh the entire list
+                        } else if (data.status === 'error') {
+                            throw new Error(data.message);
                         }
                     }
-                } catch (error) {
-                    progressBar.classList.add('bg-danger');
-                    progressText.textContent = `Error: ${error.message}`;
-                    showToast('Error', `Caching failed: ${error.message}`, 'danger');
-                } finally {
-                    button.disabled = false;
-                    spinner.classList.add('d-none');
                 }
-            });
+            } catch (error) {
+                progressBar.classList.add('bg-danger');
+                statusText.textContent = `Error: ${error.message}`;
+                showToast('Download Failed', error.message, 'danger');
+                // Re-enable button on failure to allow retry
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                btnText.innerHTML = '<i class="bi bi-download me-2"></i>Download';
+            }
         }
 
         async function loadHistory() {
@@ -1196,6 +1358,39 @@
             }
         }
 
+        async function populateModelDropdowns(config) {
+            try {
+                const response = await fetch('/api/available-models');
+                if (!response.ok) throw new Error('Failed to load model lists.');
+                const models = await response.json();
+                const defaultConfig = config || {}; // Use provided config or an empty object
+
+                const populateSelect = (selectId, modelList, useFullName = false) => {
+                    const select = document.getElementById(selectId);
+                    select.innerHTML = ''; // Clear existing options
+                    modelList.forEach(model => {
+                        const option = new Option(useFullName ? model.name : model.id, model.id);
+                        select.add(option);
+                    });
+                };
+
+                populateSelect('agent-model', models.agent_models, true);
+                populateSelect('default-agent-model', models.agent_models, true);
+                populateSelect('whisper-model', models.whisper_models, true);
+                populateSelect('default-whisper', models.whisper_models, false); // Whisper settings just use the ID
+
+                // Now that dropdowns are populated, apply the config
+                document.getElementById('agent-model').value = defaultConfig.default_agent_model;
+                document.getElementById('whisper-model').value = defaultConfig.default_whisper;
+                document.getElementById('default-agent-model').value = defaultConfig.default_agent_model;
+                document.getElementById('default-whisper').value = defaultConfig.default_whisper;
+
+            } catch (error) {
+                console.error('Error populating model dropdowns:', error);
+                showToast('Error', 'Could not populate model selection dropdowns.', 'danger');
+            }
+        }
+
         async function loadAndApplyConfig() {
             try {
                 const response = await fetch('/api/config');
@@ -1205,6 +1400,8 @@
                 // Update Settings page
                 document.getElementById('default-agent-model').value = config.default_agent_model;
                 document.getElementById('default-whisper').value = config.default_whisper;
+                // Populate dropdowns first, then apply the loaded config
+                await populateModelDropdowns(config);
 
                 // Update Analyser page
                 document.getElementById('agent-model').value = config.default_agent_model;

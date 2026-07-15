@@ -13,7 +13,6 @@ import psutil
 # Get the absolute path of the directory where this script is located
 project_root = os.path.dirname(os.path.abspath(__file__))
 
-
 app = Flask(
     __name__,
     template_folder=project_root
@@ -23,7 +22,7 @@ CORS(app)
 # --- Configuration & Model Loading ---
 UPLOAD_FOLDER = 'uploads'
 HISTORY_FILE = 'history.json'
-CONFIG_FILE = 'config.json'
+MODEL_NAMES_FILE = 'model_names.json'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -66,29 +65,14 @@ ocr_reader = easyocr.Reader(['en'], gpu=(DEVICE == 'cuda'))
 
 print("INFO: Flask app and models loaded successfully.")
 
-# --- Config Management ---
-def load_app_config():
-    """Loads the application configuration from JSON file."""
-    if not os.path.exists(CONFIG_FILE):
-        # Default config if file doesn't exist
-        return {
-            "default_agent_model": "llama3",
-            "default_whisper": "base"
-        }
+def load_model_names():
+    """Loads the available model names and descriptions from JSON file."""
     try:
-        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+        with open(MODEL_NAMES_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except (json.JSONDecodeError, IOError):
-        # Return default on error
-        return {
-            "default_agent_model": "llama3",
-            "default_whisper": "base"
-        }
-
-def save_app_config(data):
-    """Saves the application configuration to a JSON file."""
-    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=4)
+    except (FileNotFoundError, json.JSONDecodeError):
+        # Return empty lists on error
+        return {"agent_models": [], "whisper_models": []}
 
 # --- History Management ---
 def load_history():
@@ -133,40 +117,164 @@ def index():
 def app_config():
     """Endpoint to get or set application configuration."""
     if request.method == 'POST':
-        new_config = request.json
-        save_app_config(new_config)
+        # Load current model data
+        model_config = load_model_names()
+        # Update only the default keys from the request
+        new_defaults = request.json
+        model_config['default_agent_model'] = new_defaults.get('default_agent_model', model_config.get('default_agent_model'))
+        model_config['default_whisper'] = new_defaults.get('default_whisper', model_config.get('default_whisper'))
+        # Save the entire file back
+        with open(MODEL_NAMES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(model_config, f, indent=4)
         return jsonify({"message": "Configuration saved successfully."}), 200
     else:
-        return jsonify(load_app_config())
+        # Return only the default model keys
+        config = load_model_names()
+        return jsonify({
+            "default_agent_model": config.get("default_agent_model"),
+            "default_whisper": config.get("default_whisper")
+        })
+
+@app.route('/api/available-models', methods=['GET'])
+def available_models():
+    """Endpoint to get the list of available models for UI dropdowns."""
+    return jsonify(load_model_names())
+
+@app.route('/api/models-status', methods=['GET'])
+def models_status():
+    """Checks and returns the status of available AI models."""
+    agent_status, whisper_status = {}, {}
+    model_names = load_model_names()
+    agent_models_to_check = [m['id'] for m in model_names.get('agent_models', [])]
+    whisper_models_to_check = [m['id'] for m in model_names.get('whisper_models', [])]
+
+    # Helper function to ensure everything has a tag for exact matching
+    def normalize_tag(name):
+        if name and ':' not in name:
+            return f"{name}:latest"
+        return name
+
+    # --- Check Ollama Models ---
+    try:
+        response = ollama.list()
+        ollama_models_on_disk = set()
+        
+        # Handle dictionary response (Older ollama-python versions)
+        if isinstance(response, dict):
+            if 'error' in response:
+                raise Exception(response['error'])
+            ollama_models_on_disk = {model.get('name', model.get('model')) for model in response.get('models', [])}
+        
+        # Handle object response (Newer ollama-python versions >= 0.2.0)
+        else:
+            ollama_models_on_disk = {model.model for model in getattr(response, 'models', [])}
+
+        # Normalize all disk models to 'name:tag' format
+        normalized_disk_models = {normalize_tag(m) for m in ollama_models_on_disk if m}
+
+        if not normalized_disk_models:
+            # If no models are on disk, mark all as not_downloaded
+            for model_name in agent_models_to_check:
+                agent_status[model_name] = {"status": "not_downloaded"}
+        else:
+            for model_name in agent_models_to_check:
+                # Direct exact check against normalized strings
+                is_downloaded = normalize_tag(model_name) in normalized_disk_models
+                agent_status[model_name] = {"status": "downloaded" if is_downloaded else "not_downloaded"}
+            
+    except Exception as e:
+        # Broad exception catches httpx.ConnectError if the Ollama daemon isn't running
+        print(f"Warning: Could not check Ollama model status. Error: {e}")
+        for model_name in agent_models_to_check:
+            agent_status[model_name] = {"status": "unavailable", "error": "Ollama service not running"}
+
+    # --- Check Whisper Models ---
+    try:
+        whisper_cache_path = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+        os.makedirs(whisper_cache_path, exist_ok=True)
+        for model_name in whisper_models_to_check:
+            model_file = os.path.join(whisper_cache_path, f"{model_name}.pt")
+            whisper_status[model_name] = {"status": "downloaded" if os.path.exists(model_file) else "not_downloaded"}
+    except Exception as e:
+        print(f"Warning: Could not check Whisper model status. Error: {e}")
+        for model_name in whisper_models_to_check:
+            whisper_status[model_name] = {"status": "unavailable", "error": "File system error"}
+
+    return jsonify({
+        "agent_models": agent_status,
+        "whisper_models": whisper_status
+    })
+
+@app.route('/api/models/agent/<path:model_name>', methods=['DELETE'])
+def delete_agent_model(model_name):
+    """Deletes a locally cached Ollama model."""
+    try:
+        print(f"INFO: Deleting Ollama model '{model_name}'...")
+        ollama.delete(model_name)
+        print(f"INFO: Model '{model_name}' deleted successfully.")
+        return jsonify({"message": f"Model '{model_name}' deleted successfully."}), 200
+    except Exception as e:
+        # Handle cases where the model doesn't exist or Ollama service is down
+        error_message = f"Failed to delete Ollama model '{model_name}': {str(e)}"
+        print(f"ERROR: {error_message}")
+        return jsonify({"error": error_message}), 500
+
+@app.route('/api/models/whisper/<model_name>', methods=['DELETE'])
+def delete_whisper_model(model_name):
+    """Deletes a locally cached Whisper model file."""
+    try:
+        whisper_cache_path = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+        model_file = os.path.join(whisper_cache_path, f"{model_name}.pt")
+        if os.path.exists(model_file):
+            print(f"INFO: Deleting Whisper model '{model_name}' from '{model_file}'...")
+            os.remove(model_file)
+            print(f"INFO: Model '{model_name}' deleted successfully.")
+            return jsonify({"message": f"Whisper model '{model_name}' deleted."}), 200
+        return jsonify({"error": "Model file not found."}), 404
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete Whisper model: {str(e)}"}), 500
 
 @app.route('/api/cache-models', methods=['POST'])
 def cache_models():
     """Streams the progress of caching the default models."""
+    data = request.json
+    agent_models = data.get('agent_models', [])
+    whisper_models = data.get('whisper_models', [])
+
+    if not agent_models and not whisper_models:
+        return Response(json.dumps({'status': 'error', 'message': 'No models selected for caching.'}), mimetype='application/json', status=400)
+
     def generate_cache_progress():
         try:
-            config = load_app_config()
-            agent_model = config.get("default_agent_model", "llama3")
-            whisper_model_name = config.get("default_whisper", "base")
+            total_models = len(agent_models) + len(whisper_models)
+            completed_models = 0
 
-            # 1. Pull Ollama model
-            yield f"data: {json.dumps({'status': 'in_progress', 'message': f'Pulling agent model: {agent_model}...', 'progress': 0})}\n\n"
-            for progress in ollama.pull(agent_model, stream=True):
-                percentage = 0
-                total = progress.get("total")
-                if total is not None and total > 0:
-                    percentage = round((progress.get("completed", 0) / total) * 100)
-                
-                status_message = progress.get('status')
-                if 'completed' in progress and 'total' in progress:
-                    status_message = f"Downloading: {round(progress['completed']/1e9, 2)}GB / {round(progress['total']/1e9, 2)}GB"
+            # 1. Pull Ollama models
+            for agent_model in agent_models:
+                yield f"data: {json.dumps({'status': 'in_progress', 'message': f'Pulling agent model: {agent_model}...', 'progress': 0})}\n\n"
+                try:
+                    for progress in ollama.pull(agent_model, stream=True):
+                        percentage = 0
+                        # Ensure 'total' and 'completed' exist and are not None before calculating percentage
+                        total = progress.get("total")
+                        completed = progress.get("completed")
+                        if total is not None and completed is not None and total > 0:
+                            percentage = round((completed / total) * 100)
+                        status_message = progress.get('status', f'Pulling {agent_model}...')
+                        if 'completed' in progress and 'total' in progress:
+                            status_message = f"Downloading: {round(progress['completed']/1e9, 2)}GB / {round(progress['total']/1e9, 2)}GB"
+                        yield f"data: {json.dumps({'status': 'in_progress', 'message': status_message, 'progress': percentage})}\n\n"
+                    completed_models += 1
+                except Exception as e:
+                    yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to pull {agent_model}: {str(e)}'})}\n\n"
 
-                yield f"data: {json.dumps({'status': 'in_progress', 'message': status_message, 'progress': percentage})}\n\n"
+            # 2. Load Whisper models (which also downloads if not present)
+            for whisper_model_name in whisper_models:
+                yield f"data: {json.dumps({'status': 'in_progress', 'message': f'Caching Whisper model: {whisper_model_name}...', 'progress': 100})}\n\n"
+                get_whisper_model(whisper_model_name)
+                completed_models += 1
 
-            # 2. Load Whisper model (which also downloads if not present)
-            yield f"data: {json.dumps({'status': 'in_progress', 'message': f'Loading Whisper model: {whisper_model_name}...', 'progress': 100})}\n\n"
-            get_whisper_model(whisper_model_name)
-
-            yield f"data: {json.dumps({'status': 'complete', 'message': 'Default models have been cached.'})}\n\n"
+            yield f"data: {json.dumps({'status': 'complete', 'message': f'Successfully cached {completed_models}/{total_models} selected models.'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
     return Response(generate_cache_progress(), mimetype='text/event-stream')
@@ -221,8 +329,8 @@ def process_files():
     if 'audio' not in request.files and 'screenshot' not in request.files:
         return jsonify({"error": "Please upload at least one file (audio or screenshot)."}), 400
 
-    app_config = load_app_config()
-    # Get model name from the form, default to 'base'
+    # Load defaults from the unified model config
+    app_config = load_model_names()
     model_name = request.form.get('model', app_config.get('default_whisper', 'base'))
     agent_model = request.form.get('agent_model', app_config.get('default_agent_model', 'llama3'))
 

@@ -22,7 +22,7 @@ The application uses a combination of technologies:
 -   **Speech-to-Text**: `openai-whisper` for audio transcription.
 -   **Text Extraction (OCR)**: `EasyOCR` for image-to-text conversion.
 -   **AI Analysis**: `Ollama` serves local language models (e.g., Llama 3, Phi-3) for summarization.
--   **Data Persistence**: Analysis history is stored in a local `history.json` file, and model configurations are saved in `config.json`.
+-   **Data Persistence**: Analysis history is stored in a local `history.json` file, and model lists and default settings are saved in `model_names.json`.
 
 ```mermaid
 graph TD
@@ -40,7 +40,7 @@ graph TD
         end
 
         subgraph "Data Storage"
-            F["config.json <br> (Settings)"]
+            F["model_names.json <br> (Models & Settings)"]
             G["history.json <br> (Audit Trail)"]
         end
     end
@@ -64,40 +64,53 @@ graph TD
 ### Software
 
 -   **Python**: Version 3.11 is **required**. The dependencies for `openai-whisper` are not yet compatible with newer Python versions.
+-   **PowerShell**: Version 5.1 or later (for Windows users running the startup script).
 -   **NVIDIA Drivers & CUDA Toolkit**: The server must have the appropriate NVIDIA drivers and CUDA Toolkit (version 12.1 is recommended) installed.
 -   **Ollama**: The Ollama service must be installed to run the local language models.
 -   **FFmpeg**: A system utility required by Whisper for audio processing.
+-   **MSVC C++ Build Tools & Rust**: Required on Windows for compiling some Python dependencies. The startup script will check for these and help with installation.
 
 ---
 
 ## 🚀 Local Installation & Setup
 
-1.  **Clone the Repository**:
-    ```bash
-    git clone <your-repository-url>
-    cd ISPAnalysers
+### For Windows Users (Recommended)
+
+The easiest way to get started on Windows is to use the provided PowerShell script. It automates all the necessary checks and setup steps.
+
+1.  **Open PowerShell**: Open a new PowerShell terminal.
+2.  **Run the Startup Script**:
+    ```powershell
+    .\Start_Server.ps1
     ```
+    The script will:
+    -   Validate your Python version.
+    -   Check for required build tools (MSVC, Rust) and Ollama, assisting with installation if needed.
+    -   Create a virtual environment.
+    -   Install all Python dependencies, including the correct version of PyTorch for your GPU.
+    -   Launch the application.
 
-2.  **Create a Virtual Environment**:
+### For Linux/macOS Users (Manual Setup)
+
+1.  **Clone the Repository** and navigate into the directory.
+2.  **Install Ollama**: Follow the instructions at ollama.com.
+3.  **Pull a Default Model**:
     ```bash
-    python -m venv .venv
+    ollama pull phi3:mini
     ```
-
-3.  **Activate the Environment**:
-    -   **Windows**: `.\.venv\Scripts\activate`
-    -   **Linux/macOS**: `source .venv/bin/activate`
-
-4.  **Install Dependencies**:
+4.  **Create and Activate a Virtual Environment**:
+    ```bash
+    python3 -m venv .venv
+    source .venv/bin/activate
+    ```
+5.  **Install Dependencies**:
     ```bash
     pip install -r requirements.txt
     ```
-    *(Note: You will need to create a `requirements.txt` file containing libraries like `flask`, `torch`, `easyocr`, `openai-whisper`, `ollama`, `psutil`, etc.)*
-
-5.  **Run the Application**:
+6.  **Run the Application**:
     ```bash
-    python app.py
+    python3 app.py
     ```
-    The application will be accessible at `http://127.0.0.1:5000`.
 
 ---
 

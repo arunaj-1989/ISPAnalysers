@@ -43,6 +43,12 @@
             --bs-border-color: var(--border-color);
         }
 
+        :root {
+            --sidebar-expanded-width: 260px;
+            --sidebar-collapsed-width: 82px;
+            --sidebar-shell-gap: 0.9rem;
+        }
+
         body {
             background-color: var(--body-bg);
             color: var(--bs-body-color);
@@ -270,11 +276,15 @@
 
         .main-content {
             padding-top: 1.5rem;
-            margin-left: 260px;
-            transition: margin-left 0.25s ease;
+            margin-left: calc(var(--sidebar-expanded-width) + var(--sidebar-shell-gap));
+            width: calc(100vw - var(--sidebar-expanded-width) - var(--sidebar-shell-gap));
+            max-width: none;
+            transition: margin-left 0.25s ease, width 0.25s ease;
+            box-sizing: border-box;
         }
         body.sidebar-collapsed .main-content {
-            margin-left: 98px;
+            margin-left: calc(var(--sidebar-collapsed-width) + var(--sidebar-shell-gap));
+            width: calc(100vw - var(--sidebar-collapsed-width) - var(--sidebar-shell-gap));
         }
 
         .card-glass {
@@ -592,6 +602,7 @@
             }
             .main-content,
             body.sidebar-collapsed .main-content {
+                width: 100%;
                 margin-left: 0;
             }
             .main-content .header {

@@ -1,196 +1,170 @@
 # Interjet Support Analyser
 
-This is a web application designed for analyzing ISP customer support interactions. It integrates powerful AI models to extract and process information from audio calls and screenshots, providing a comprehensive summary and audit trail.
+Interjet Support Analyser is a Flask-based ISP support workspace that can analyse uploaded screenshots and audio, route issues through a LangGraph workflow, and continuously monitor a configurable `customer_data` folder into SQLite.
 
-## ✨ Features
+## What It Does
 
--   **Modern Web UI**: A responsive frontend built with Flask and Bootstrap, featuring a dark/light theme switcher.
--   **🤖 Configurable AI Analysis**: Uses local Large Language Models via Ollama to automatically categorize issues and suggest next steps. The model used for analysis can be configured in the settings.
--   **🎤 Audio Transcription**: Transcribes speech from audio files into text using `openai-whisper`, with selectable model sizes for balancing speed and accuracy.
--   **🖼️ Image-to-Text (OCR)**: Extracts text from images (like payment screenshots) using `EasyOCR`.
--   **⚙️ GPU Accelerated**: Leverages NVIDIA GPUs via CUDA for fast and efficient AI processing.
--   **📊 Interactive Dashboard**: Review, search, sort, and filter the entire analysis history. Includes an audit-friendly table view with a CSV export option.
--   **🔧 Centralized Settings**: A dedicated page to configure default AI models and monitor real-time hardware utilization (GPU, CPU, RAM, Storage).
--   **🚀 Real-time Progress**: The analysis workflow provides live progress updates using Server-Sent Events (SSE).
+- Manual analysis of one customer interaction at a time.
+- OCR for screenshots using EasyOCR.
+- Transcription for audio using Whisper.
+- Routed issue classification and specialist handling with LangChain + LangGraph.
+- Human review gate for uncertain cases.
+- Approval-based operational actions for supported issue categories.
+- Background customer-data monitoring from a root folder plus Excel mapping.
+- SQLite persistence for monitored records, payments, and runtime status.
+- Live dashboard, compact settings page, and collapsible sidebar UI.
+
+## Key Features
+
+- **Analyser**: Upload audio and/or screenshots, choose the active models, and review the routed LangGraph trace.
+- **Dashboard**: View monitor health, manual history, monitored customer records, matched payments, and approvals.
+- **Settings**: Configure the customer data folder, Excel mapping file, monitor interval, and default models.
+- **Customer Monitor**: Watches subfolders, skips duplicates by content hash, and stores results in SQLite.
+- **Live Status**: Shows processing progress, last scan details, and current monitor state in the UI.
+- **Approvals**: Supports approve/reject flows for manual history and monitored actions.
 
 ## Architecture Overview
 
-The application uses a combination of technologies:
-
--   **Backend**: A `Flask` server written in Python handles file uploads, AI processing, and API endpoints.
--   **Frontend**: A custom single-page interface built with `HTML`, `JavaScript`, and `Bootstrap`.
--   **Speech-to-Text**: `openai-whisper` for audio transcription.
--   **Text Extraction (OCR)**: `EasyOCR` for image-to-text conversion.
--   **AI Analysis**: `Ollama` serves local language models (e.g., Llama 3, Phi-3) for summarization.
--   **Data Persistence**: Analysis history is stored in a local `history.json` file, and model lists and default settings are saved in `model_names.json`.
-
 ```mermaid
 graph TD
-    subgraph "User`s Browser"
-        A["Frontend <br> (HTML/JS/Bootstrap)"]
-    end
+    U[User Browser] --> F[Flask App / app.py]
 
-    subgraph "Backend Server"
-        B["Flask App <br> (app.py)"]
-        
-        subgraph "AI/ML Models"
-            C["EasyOCR <br> (Image to Text)"]
-            D["Whisper <br> (Audio to Text)"]
-            E["Ollama <br> (LLM/SLM for Summary)"]
-        end
+    F --> A[Analyser UI]
+    F --> D[Dashboard UI]
+    F --> S[Settings UI]
 
-        subgraph "Data Storage"
-            F["model_names.json <br> (Models & Settings)"]
-            G["history.json <br> (Audit Trail)"]
-        end
-    end
+    F --> O[OCR: EasyOCR]
+    F --> W[Transcription: Whisper]
+    F --> L[LLM Routing and Summaries: LangChain + LangGraph + Ollama]
 
-    A -- "File Uploads & API Requests" --> B
-    B -- "Process Image" --> C
-    B -- "Transcribe Audio" --> D
-    B -- "Generate Summary" --> E
-    B -- "Read/Write Settings" --> F
-    B -- "Read/Write History" --> G
-    B -- "Serves UI & Streams Results" --> A
+    F --> H[history.json]
+    F --> M[model_names.json]
+    F --> Q[customer_data.db]
+
+    F --> C[Customer Data Monitor]
+    C --> X[Customer Mapping Excel]
+    C --> R[customer_data Folder]
 ```
 
-##  Prerequisites
+## Technology Stack
 
-### Hardware
+- **Backend**: Flask, Flask-Cors
+- **Workflow Orchestration**: LangChain, LangGraph, Ollama
+- **Speech / OCR**: Whisper, EasyOCR
+- **Data Storage**: JSON for history and model defaults, SQLite for customer monitoring
+- **Frontend**: HTML, JavaScript, Bootstrap 5, Bootstrap Icons
+- **Utilities**: openpyxl for Excel mapping, psutil for system metrics
 
--   **Server**: A server running a Linux or Windows distribution.
--   **GPU**: An NVIDIA GPU with CUDA support is **required** for optimal performance.
+## Project Layout
 
-### Software
+- `app.py` - Flask backend, LangGraph workflow, APIs, and monitor service
+- `index.html` - Single-page UI for Analyser, Dashboard, and Settings
+- `Home.py` - Placeholder entry point from earlier iterations
+- `history.json` - Stored analysis history
+- `model_names.json` - Default model names and monitor configuration
+- `customer_data.db` - SQLite database created at runtime for monitored intake
+- `Start_Server.ps1` - Windows startup script
+- `start_server.sh` - Linux/macOS startup script
 
--   **Python**: Version 3.11 is **required**. The dependencies for `openai-whisper` are not yet compatible with newer Python versions.
--   **PowerShell**: Version 5.1 or later (for Windows users running the startup script).
--   **NVIDIA Drivers & CUDA Toolkit**: The server must have the appropriate NVIDIA drivers and CUDA Toolkit (version 12.1 is recommended) installed.
--   **Ollama**: The Ollama service must be installed to run the local language models.
--   **FFmpeg**: A system utility required by Whisper for audio processing.
--   **MSVC C++ Build Tools & Rust**: Required on Windows for compiling some Python dependencies. The startup script will check for these and help with installation.
+## Prerequisites
 
----
+- Python 3.11
+- Ollama installed and running locally
+- FFmpeg available on PATH
+- Optional: NVIDIA GPU with CUDA for faster processing
 
-## 🚀 Local Installation & Setup
+## Installation
 
-### For Windows Users (Recommended)
+### Windows
 
-The easiest way to get started on Windows is to use the provided PowerShell script. It automates all the necessary checks and setup steps.
+1. Open PowerShell in the project folder.
+2. Run:
+   ```powershell
+   .\Start_Server.ps1
+   ```
+3. The script validates the environment, creates a virtual environment, installs dependencies, and starts the app.
 
-1.  **Open PowerShell**: Open a new PowerShell terminal.
-2.  **Run the Startup Script**:
-    ```powershell
-    .\Start_Server.ps1
-    ```
-    The script will:
-    -   Validate your Python version.
-    -   Check for required build tools (MSVC, Rust) and Ollama, assisting with installation if needed.
-    -   Create a virtual environment.
-    -   Install all Python dependencies, including the correct version of PyTorch for your GPU.
-    -   Launch the application.
+### Linux / macOS
 
-### For Linux/macOS Users (Manual Setup)
+1. Create and activate a virtual environment:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Start the app:
+   ```bash
+   python3 app.py
+   ```
 
-1.  **Clone the Repository** and navigate into the directory.
-2.  **Install Ollama**: Follow the instructions at ollama.com.
-3.  **Pull a Default Model**:
-    ```bash
-    ollama pull phi3:mini
-    ```
-4.  **Create and Activate a Virtual Environment**:
-    ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate
-    ```
-5.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-6.  **Run the Application**:
-    ```bash
-    python3 app.py
-    ```
+## Configuration
 
----
+Use the Settings page to configure:
 
-## 🔌 Using the API
+- Customer Data Folder
+- Customer Mapping Excel
+- Monitor Interval
+- Default Whisper Model
+- Default Agent Model
 
-The application exposes a REST API endpoint for programmatic analysis, which streams progress and results via Server-Sent Events (SSE).
+The monitor watches the configured root folder for subfolders containing screenshots and audio. Folder names are matched against the Excel mapping, then persisted to SQLite.
 
-**Endpoint**: `POST /api/process`
-**Port**: `5000` (default for Flask)
+## Customer Monitor Workflow
 
-### Request Body
+1. The monitor scans the configured root folder.
+2. Each file is fingerprinted using SHA-256 content hashing.
+3. Duplicate content is skipped even if the file name changes.
+4. The Excel mapping resolves folder names to customer and account data.
+5. Records are stored in `customer_data.db`.
+6. Matched payments and operational actions are surfaced in the Dashboard.
 
-You must provide at least one file (`audio` or `screenshot`). You can also specify which AI models to use.
+## API Endpoints
 
--   `audio` (optional): The customer call audio file (e.g., `.mp3`, `.wav`).
--   `screenshot` (optional): An image file for evidence (e.g., a payment confirmation).
--   `model` (optional): The name of the Whisper model to use (e.g., `base`, `small`).
--   `agent_model` (optional): The name of the Ollama agent model to use (e.g., `llama3`, `phi3:mini`).
+- `POST /api/process` - Run the routed analysis workflow for manual uploads.
+- `GET /api/history` - Read stored manual analysis history.
+- `GET /api/system-info` - Read current CPU, RAM, storage, and GPU status.
+- `GET /api/monitor/status` - Read live monitor status and statistics.
+- `POST /api/monitor/scan-now` - Trigger an immediate customer-data scan.
+- `GET /api/monitor/artifacts` - Read monitored customer records.
+- `GET /api/monitor/payments` - Read matched payments.
+- `GET /api/config` - Read saved settings.
+- `POST /api/config` - Save settings.
+- `POST /api/browse/folder` - Open a folder picker.
+- `POST /api/browse/excel` - Open an Excel picker.
 
-### Example API Call with `curl`
+## Analysis Flow
 
-This example sends an audio file and a screenshot for analysis.
-```bash
-curl -N -X POST http://127.0.0.1:5000/api/process \
-  -F "audio=@/path/to/renewal.wav" \
-  -F "screenshot=@/path/to/payment.png"
-```
+The manual analysis path is routed through LangGraph:
 
-### Example API Call with Python
+1. Image preprocessing and OCR
+2. Audio transcription
+3. Issue classification and specialist routing
+4. Summary generation
+5. Review gate when confidence is low or billing evidence needs verification
+6. Optional approval-driven action execution
+7. History persistence and UI trace output
 
-This example shows how to call the API using the `requests` library in Python.
+## Notes
 
-```python
-import requests
+- The sidebar is collapsible on desktop and stays icon-only in compact mode.
+- Live monitor status is shown in the Dashboard and in the sidebar.
+- The app keeps analysis history separate from monitored customer intake.
 
-# The server's IP address and port
-url = "http://<your-server-ip>:5000/analyze"
+## Changelog
 
-# Define the paths to your files
-audio_file_path = "/path/to/customer_call.mp3"
-image_files_paths = [
-    "/path/to/router_lights.jpg",
-    "/path/to/payment_screenshot.png"
-]
+- **LangGraph migration**: The analysis flow now routes through LangGraph with issue classification, specialist routing, review gates, and approval-driven actions.
+- **Customer monitor**: Added a background monitor for the configurable `customer_data` folder with Excel-based mapping, duplicate skipping by content hash, and SQLite persistence.
+- **Dashboard updates**: The Dashboard now surfaces live monitor status, monitored records, matched payments, and approval controls.
+- **Settings redesign**: Settings was simplified into a compact configuration-first page with browse actions for the folder and Excel mapping.
+- **Sidebar polish**: The sidebar now supports desktop collapse with a centered icon toggle and compact live status rendering.
 
-# Prepare the files for the multipart request
-files = [("image", (open(path, "rb"))) for path in image_files_paths]
-files.append(("audio", open(audio_file_path, "rb")))
+## Support Files
 
-try:
-    response = requests.post(url, files=files)
-    response.raise_for_status()  # Raise an exception for bad status codes
-    
-    # Print the JSON response from the server
-    print(response.json())
+- `requirements.txt` - Python dependencies
+- `pyproject.toml` - Build metadata
+- `skill.md` - Workspace guidance used by the agent
 
-except requests.exceptions.RequestException as e:
-    print(f"An error occurred: {e}")
-
-finally:
-    # Ensure all files are closed
-    for _, file_tuple in files:
-        file_tuple.close()
-```
-
-### Example JSON Response
-
-The API will return a JSON object containing the transcription and the final analysis.
-
-```json
-{
-  "transcription": "Hello my internet is not working, the light is red...",
-  "analysis": {
-    "customer_name": "N/A",
-    "issue_category": "Connectivity Issue",
-    "key_info": {
-      "symptoms": ["internet not working", "light is red"]
-    },
-    "evidence_summary": "Image analysis of 'router_lights.jpg' shows a red light, indicating a connection problem.",
-    "recommendation": "Customer is facing a connectivity issue. Router's 'Internet' light is red. A restart did not solve the problem. Recommended next step: Schedule a technician visit."
-  }
-}
-```
+If you want, I can also add a short changelog section so the README documents the recent agent, monitor, and UI redesigns in release-note style.

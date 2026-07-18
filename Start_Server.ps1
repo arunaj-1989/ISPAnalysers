@@ -7,9 +7,10 @@
     2. Checks for and helps install necessary build tools (MSVC, Rust).
     3. Installs Ollama and pulls the required model if not present.
     4. Creates a Python virtual environment if it doesn't exist.
-    5. Installs required packages from 'requirements.txt'.
+    5. Installs required packages from 'requirements.txt' (including LangChain/LangGraph agent stack).
     6. Verifies GPU support for PyTorch.
-    7. Launches the Flask web application.
+    7. Verifies AI agent dependencies can be imported.
+    8. Launches the Flask web application.
 .NOTES
     - Must be run from the root directory of the project.
     - Requires PowerShell 5.1 or later.
@@ -187,6 +188,17 @@ try {
     }
 } catch {
     Write-Log "Failed to run PyTorch CUDA check. There might be an issue with the installation." -Color Red
+}
+
+# --- 3c. Verify AI Agent Dependencies ---
+Write-Log "Step 3c: Verifying AI agent dependencies (LangChain/LangGraph)..."
+try {
+    & $PythonVenvExe -c "import langchain, langgraph, langchain_ollama; print('ok')" | Out-Null
+    Write-Log "AI agent dependencies are available." -Color Green
+} catch {
+    Write-Log "Failed to import one or more AI agent dependencies (langchain/langgraph/langchain-ollama)." -Color Red
+    Write-Log "Try re-running dependency installation or manually running: pip install -r requirements.txt" -Color Red
+    exit 1
 }
 
 # --- 4. Run the Application ---

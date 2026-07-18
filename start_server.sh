@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # SYNOPSIS:
-#   Sets up the environment and runs the Streamlit-based ISP Analyser application on Ubuntu.
+#   Sets up the environment and runs the Flask-based ISP Analyser application on Ubuntu.
 #
 # DESCRIPTION:
 #   This script automates the setup and execution of the entire application. It performs the following steps:
@@ -9,9 +9,10 @@
 #   2.  Checks for and helps install necessary build tools (build-essential, FFmpeg, Rust).
 #   3.  Installs Ollama and pulls the required model if not present.
 #   4.  Creates a Python virtual environment if it doesn't exist.
-#   5.  Installs required packages from 'requirements.txt'.
+#   5.  Installs required packages from 'requirements.txt' (including LangChain/LangGraph agent stack).
 #   6.  Verifies GPU support for PyTorch.
-#   7.  Launches the Streamlit web application.
+#   7.  Verifies AI agent dependencies can be imported.
+#   8.  Launches the Flask web application.
 #
 # NOTES:
 #   - Must be run from the root directory of the project.
@@ -32,13 +33,13 @@ OLLAMA_MODEL="phi3" # Match the model used in the README
 
 # --- Helper Functions ---
 log() {
-    echo "[$ (date +'%H:%M:%S')] $1"
+    echo "[$(date +'%H:%M:%S')] $1"
 }
 
 log_color() {
     local color_code=$2
     local message=$1
-    echo -e "[$ (date +'%H:%M:%S')] \033[${color_code}m${message}\033[0m"
+    echo -e "[$(date +'%H:%M:%S')] \033[${color_code}m${message}\033[0m"
 }
 
 command_exists() {
@@ -149,16 +150,27 @@ else
     log_color "Warning: PyTorch is installed but cannot detect a compatible NVIDIA GPU. The app will run on the CPU." "33" # Yellow
 fi
 
-# --- 4. Run the Application ---
-log "Step 4: Launching the Streamlit application..."
-
-if [ ! -f "$APP_SCRIPT" ]; then
-    log_color "Streamlit application script '$APP_SCRIPT' not found!" "31" # Red
+# --- 3c. Verify AI Agent Dependencies ---
+log "Step 3c: Verifying AI agent dependencies (LangChain/LangGraph)..."
+if python -c "import langchain, langgraph, langchain_ollama" >/dev/null 2>&1; then
+    log_color "AI agent dependencies are available." "32" # Green
+else
+    log_color "Failed to import one or more AI agent dependencies (langchain/langgraph/langchain-ollama)." "31" # Red
+    log_color "Try re-running dependency installation or manually running: pip install -r $REQUIREMENTS_FILE" "31" # Red
     exit 1
 fi
 
-log_color "You can access the app in your browser. Press CTRL+C in this window to stop the server." "36" # Cyan
-streamlit run "$APP_SCRIPT"
+# --- 4. Run the Application ---
+log "Step 4: Launching the Flask application..."
+
+if [ ! -f "$APP_SCRIPT" ]; then
+    log_color "Flask application script '$APP_SCRIPT' not found!" "31" # Red
+    exit 1
+fi
+
+log_color "You can access the app at http://127.0.0.1:5000" "36" # Cyan
+log_color "Press CTRL+C in this window to stop the server." "36" # Cyan
+python "$APP_SCRIPT"
 
 deactivate
 log "Application stopped."

@@ -1,6 +1,9 @@
 {
-    "default_agent_model": "phi3:mini",
-    "default_whisper": "base",
+    "default_agent_model": "mistral",
+    "default_whisper": "small",
+    "customer_data_root": "C:/Users/aruna/Downloads/interjet",
+    "customer_excel_path": "C:/Users/aruna/Downloads/interjet/New Microsoft Excel Worksheet.xlsx",
+    "monitor_interval_seconds": 5,
     "agent_models": [
         {
             "id": "phi3:mini",

@@ -54,9 +54,213 @@
             bottom: 0;
             left: 0;
             z-index: 100;
-            padding: 1.25rem 1rem;
-            background-color: var(--sidebar-bg);
-            border-right: 1px solid var(--border-color);
+            padding: 1rem 0.9rem;
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.03)), var(--sidebar-bg);
+            border: 1px solid var(--border-color);
+            width: 260px;
+            transition: width 0.25s ease, transform 0.25s ease;
+            overflow-x: hidden;
+            overflow-y: auto;
+            scrollbar-width: none;
+            border-radius: 1.4rem;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+            margin: 0.45rem;
+        }
+        .sidebar::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+        }
+        .sidebar.collapsed {
+            width: 82px;
+            padding: 0.7rem 0.4rem;
+            background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.05)), var(--sidebar-bg);
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+        }
+        .sidebar .sidebar-brand-text,
+        .sidebar .nav-text,
+        .sidebar .sidebar-status-label,
+        .sidebar .sidebar-status-title,
+        .sidebar .sidebar-status-detail {
+            transition: opacity 0.2s ease;
+        }
+        .sidebar.collapsed .sidebar-brand-text,
+        .sidebar.collapsed .nav-text,
+        .sidebar.collapsed .sidebar-status-label,
+        .sidebar.collapsed .sidebar-status-title,
+        .sidebar.collapsed .sidebar-status-detail {
+            display: none !important;
+            pointer-events: none;
+        }
+        .sidebar.collapsed .sidebar-status-caption {
+            font-size: 0.63rem;
+            line-height: 1;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--bs-body-color);
+            opacity: 0.92;
+        }
+        .sidebar.collapsed .d-flex.flex-column.h-100 {
+            gap: 0.4rem;
+        }
+        .sidebar.collapsed .sidebar-brand,
+        .sidebar.collapsed .sidebar-toggle,
+        .sidebar.collapsed .nav-link,
+        .sidebar.collapsed .mt-auto {
+            width: 100%;
+        }
+        .sidebar.collapsed .sidebar-brand {
+            height: 2.8rem;
+            justify-content: center;
+            border-radius: 1.2rem;
+            border: 1px solid rgba(138, 85, 247, 0.12);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+        .sidebar.collapsed .sidebar-brand i {
+            margin-right: 0 !important;
+            font-size: 1.3rem;
+        }
+        .sidebar.collapsed .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            min-height: 2.7rem;
+            border-radius: 1rem;
+            border: 1px solid transparent;
+            background: rgba(255, 255, 255, 0.04);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            text-align: center;
+        }
+        .sidebar.collapsed .nav-link i {
+            display: block;
+            margin-right: 0 !important;
+            font-size: 1.08rem;
+            width: 100%;
+            max-width: 1.55rem;
+            text-align: center;
+            flex: 0 0 auto;
+        }
+        .sidebar.collapsed .nav-link.active {
+            background: linear-gradient(135deg, rgba(138,85,247,0.95), rgba(99,102,241,0.92));
+            border-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 12px 24px rgba(138, 85, 247, 0.35);
+            color: #fff;
+        }
+        .sidebar.collapsed .nav-link.active i {
+            color: #fff;
+        }
+        .sidebar.collapsed .nav-link:not(.active):hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(138, 85, 247, 0.12);
+        }
+        .sidebar.collapsed .nav,
+        .sidebar.collapsed .nav-pills {
+            gap: 0.3rem;
+        }
+        .sidebar.collapsed .nav-item {
+            width: 100%;
+        }
+        .sidebar.collapsed .sidebar-toggle {
+            justify-content: center;
+            min-height: 2.5rem;
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(138, 85, 247, 0.14);
+        }
+        .sidebar.collapsed #system-info-body {
+            display: flex !important;
+            flex-direction: column;
+            gap: 0.35rem;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.45rem 0.2rem;
+            border-radius: 1.2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+        }
+        .sidebar.collapsed #system-info-body > div {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.12rem;
+            padding: 0.32rem 0.35rem;
+            min-height: 2.35rem;
+            border-radius: 0.8rem;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            text-align: center;
+        }
+        .sidebar.collapsed #cpu-only-container {
+            display: none !important;
+        }
+        .sidebar.collapsed .status-ring {
+            display: none;
+        }
+        .sidebar.collapsed .sidebar-status-caption {
+            display: block;
+            font-size: 0.58rem;
+            line-height: 1;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--bs-secondary-color);
+            margin: 0;
+        }
+        .sidebar.collapsed .sidebar-status-value {
+            display: block !important;
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1;
+            color: var(--bs-body-color);
+            margin: 0;
+        }
+        .sidebar.collapsed .status-ring {
+            width: 30px;
+            height: 30px;
+        }
+        .sidebar.collapsed .status-ring svg {
+            width: 100%;
+            height: 100%;
+        }
+        .sidebar.collapsed .status-ring .ring-bg,
+        .sidebar.collapsed .status-ring .ring-fg {
+            stroke-width: 3.5;
+        }
+        .sidebar-toggle {
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--bs-body-color);
+            width: 100%;
+        }
+        .sidebar.collapsed .sidebar-toggle .toggle-label {
+            display: none;
+        }
+        .sidebar.collapsed .sidebar-footer-title {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center;
+            margin-bottom: 0.2rem !important;
+        }
+        .sidebar.collapsed .sidebar-footer-title #refresh-status-btn {
+            margin-left: 0 !important;
+            width: 1.9rem;
+            height: 1.9rem;
+            padding: 0;
+        }
+        .sidebar.collapsed .sidebar-status-title {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .sidebar.collapsed .sidebar-status-title i {
+            margin-right: 0 !important;
+        }
+        .sidebar.collapsed .mt-auto {
+            margin-top: auto !important;
+            padding-top: 0.1rem;
         }
 
         .sidebar.show {
@@ -66,6 +270,11 @@
 
         .main-content {
             padding-top: 1.5rem;
+            margin-left: 260px;
+            transition: margin-left 0.25s ease;
+        }
+        body.sidebar-collapsed .main-content {
+            margin-left: 98px;
         }
 
         .card-glass {
@@ -73,6 +282,52 @@
             border: 1px solid var(--border-color);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        .card-glass .card-header {
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 1.1rem;
+        }
+        .card-glass .card-body {
+            padding: 1.1rem;
+        }
+        .page-shell {
+            max-width: 1080px;
+            margin: 0 auto;
+        }
+        .page-kicker {
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            color: rgba(var(--bs-primary-rgb), 0.95);
+            font-weight: 700;
+        }
+        .page-intro {
+            max-width: 42rem;
+            color: rgba(var(--bs-body-color-rgb, 222, 226, 230), 0.72);
+        }
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        .section-subtitle {
+            color: var(--bs-secondary-color);
+            font-size: 0.82rem;
+            margin-bottom: 0;
+        }
+        .btn-outline-secondary,
+        .btn-outline-primary,
+        .btn-outline-danger,
+        .btn-outline-success,
+        .btn-outline-warning {
+            border-width: 1px;
+        }
+        .btn-sm,
+        .btn-xs {
+            font-weight: 600;
         }
 
         .workflow-step {
@@ -146,6 +401,187 @@
             background-color: rgba(var(--bs-primary-rgb), 0.1);
             color: var(--bs-body-color);
         }
+        .settings-shell {
+            max-width: 980px;
+            margin: 0 auto;
+        }
+        .settings-panel {
+            background: linear-gradient(145deg, rgba(var(--bs-primary-rgb), 0.08), transparent 38%), var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+        }
+        .settings-field {
+            padding: 0.95rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.9rem;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .settings-field.field-span-2 {
+            grid-column: span 2;
+        }
+        .settings-field .form-label {
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+        .settings-field .form-text {
+            margin-top: 0.45rem;
+            font-size: 0.78rem;
+        }
+        .settings-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            padding-top: 0.5rem;
+        }
+        .settings-compact-stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+        .settings-compact-stat {
+            padding: 0.85rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.9rem;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .settings-compact-stat .label {
+            display: block;
+            color: var(--bs-secondary-color);
+            font-size: 0.76rem;
+            margin-bottom: 0.2rem;
+        }
+        .settings-compact-stat .value {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .settings-accordion .accordion-item {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 0.9rem;
+            overflow: hidden;
+        }
+        .settings-accordion .accordion-button {
+            background: rgba(255, 255, 255, 0.02);
+            box-shadow: none;
+            font-weight: 600;
+        }
+        .settings-accordion .accordion-button.collapsed {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .settings-accordion .accordion-body {
+            background: rgba(255, 255, 255, 0.01);
+        }
+        .dashboard-shell {
+            max-width: 1180px;
+            margin: 0 auto;
+        }
+        .dashboard-overview {
+            background: linear-gradient(145deg, rgba(var(--bs-primary-rgb), 0.08), transparent 38%), var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+        }
+        .dashboard-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+        .dashboard-mini-card {
+            padding: 0.85rem 0.95rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.9rem;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .dashboard-mini-card .label {
+            display: block;
+            color: var(--bs-secondary-color);
+            font-size: 0.76rem;
+            margin-bottom: 0.2rem;
+        }
+        .dashboard-mini-card .value {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .dashboard-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+        .dashboard-meta-item {
+            padding: 0.8rem 0.95rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.9rem;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .dashboard-main-card,
+        .dashboard-secondary-card {
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        .dashboard-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .dashboard-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .dashboard-secondary-card .accordion-button,
+        .dashboard-overview .accordion-button {
+            box-shadow: none;
+        }
+        .analyser-shell {
+            max-width: 1080px;
+            margin: 0 auto;
+        }
+        .analyser-main-card {
+            background: linear-gradient(145deg, rgba(var(--bs-primary-rgb), 0.08), transparent 38%), var(--surface-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        .analyser-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+            gap: 1rem;
+        }
+        .analyser-pane {
+            padding: 1rem 1.1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.95rem;
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .analyser-pane h5 {
+            margin-bottom: 0.25rem;
+        }
+        .analyser-pane .subtext {
+            color: var(--bs-secondary-color);
+            font-size: 0.82rem;
+            margin-bottom: 1rem;
+        }
+        .analyser-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .analyser-actions > * {
+            flex: 1 1 180px;
+        }
+        .analyser-checks {
+            padding-top: 0.35rem;
+            border-top: 1px solid var(--border-color);
+        }
 
         @media (max-width: 767.98px) {
             .sidebar {
@@ -154,9 +590,39 @@
                 width: 80%;
                 max-width: 320px;
             }
+            .main-content,
+            body.sidebar-collapsed .main-content {
+                margin-left: 0;
+            }
             .main-content .header {
                 position: relative;
                 padding-top: 3rem; /* Add padding to make space for buttons */
+            }
+            .settings-grid,
+            .settings-compact-stats {
+                grid-template-columns: 1fr;
+            }
+            .settings-field.field-span-2 {
+                grid-column: auto;
+            }
+            .settings-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .dashboard-mini-grid,
+            .dashboard-meta-grid {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-toolbar,
+            .dashboard-controls {
+                align-items: stretch;
+            }
+            .analyser-grid {
+                grid-template-columns: 1fr;
+            }
+            .page-intro,
+            .dashboard-intro {
+                max-width: none;
             }
         }
 
@@ -195,29 +661,32 @@
             <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block sidebar">
                 <div class="d-flex flex-column h-100">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <a class="navbar-brand d-flex align-items-center" href="#">
+                        <a class="navbar-brand d-flex align-items-center sidebar-brand" href="#">
                             <i class="bi bi-reception-4 fs-5 me-2 text-primary"></i>
-                            <strong class="fs-6">Interjet Analyser</strong>
+                            <strong class="fs-6 sidebar-brand-text">Interjet Analyser</strong>
                         </a>
                     </div>
+                    <button class="btn sidebar-toggle btn-sm d-none d-md-flex align-items-center justify-content-center mb-4" id="sidebar-collapse-btn" type="button" aria-label="Toggle sidebar">
+                        <i class="bi bi-chevron-left" id="sidebar-collapse-icon"></i>
+                    </button>
 
                     <!-- Navigation -->
                     <ul class="nav nav-pills flex-column mb-4">
                         <li class="nav-item">
-                            <a href="#" class="nav-link active" id="nav-analyser"><i class="bi bi-magic me-2"></i>Analyser</a>
+                            <a href="#" class="nav-link active" id="nav-analyser" title="Analyser"><i class="bi bi-magic me-2"></i><span class="nav-text">Analyser</span></a>
                         </li>
                         <li class="nav-item">
-                            <a href="#" class="nav-link" id="nav-dashboard"><i class="bi bi-layout-text-sidebar-reverse me-2"></i>Dashboard</a>
+                            <a href="#" class="nav-link" id="nav-dashboard" title="Dashboard"><i class="bi bi-layout-text-sidebar-reverse me-2"></i><span class="nav-text">Dashboard</span></a>
                         </li>
                         <li class="nav-item">
-                            <a href="#" class="nav-link" id="nav-settings"><i class="bi bi-sliders me-2"></i>Settings</a>
+                            <a href="#" class="nav-link" id="nav-settings" title="Settings"><i class="bi bi-sliders me-2"></i><span class="nav-text">Settings</span></a>
                         </li>
                     </ul>                    
 
                     <!-- System Status Card anchored at the bottom -->
                     <div class="mt-auto" >
-                        <h6 class="text-muted text-uppercase small mb-3 d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-hdd-stack me-2"></i>System Status</span>
+                        <h6 class="text-muted text-uppercase small mb-3 d-flex justify-content-between align-items-center sidebar-footer-title">
+                            <span class="sidebar-status-title"><i class="bi bi-hdd-stack me-2"></i><span class="sidebar-status-label">System Status</span></span>
                             <button class="btn btn-sm btn-outline-secondary py-0" id="refresh-status-btn"><i class="bi bi-arrow-clockwise"></i></button>
                         </h6>
                         <div id="system-info-body" class="d-flex justify-content-around text-center small">
@@ -227,11 +696,12 @@
                                     <svg><circle class="ring-bg" cx="27.5" cy="27.5" r="25"></circle><circle id="gpu-ring-fg" class="ring-fg" cx="27.5" cy="27.5" r="25" stroke="var(--bs-primary)"></circle></svg>
                                     <span id="gpu-usage-text" class="fw-bold"></span>
                                 </div>
-                                <div class="text-muted mt-1">GPU</div>
+                                <div class="text-muted mt-1 sidebar-status-caption">GPU</div>
+                                <span id="gpu-usage-text-compact" class="sidebar-status-value d-none">--</span>
                             </div>
                             <!-- CPU Only Text -->
                             <div id="cpu-only-container" style="display: block;" class="align-self-center">
-                                <strong class="text-muted"><i class="bi bi-cpu me-2"></i>On CPU</strong>
+                                <strong class="text-muted sidebar-status-detail"><i class="bi bi-cpu me-2"></i>On CPU</strong>
                             </div>
                             <!-- CPU Ring -->
                             <div title="CPU Usage">
@@ -239,7 +709,8 @@
                                     <svg><circle class="ring-bg" cx="27.5" cy="27.5" r="25"></circle><circle id="cpu-ring-fg" class="ring-fg" cx="27.5" cy="27.5" r="25" stroke="var(--bs-info)"></circle></svg>
                                     <span id="cpu-usage-text" class="fw-bold"></span>
                                 </div>
-                                <div class="text-muted mt-1">CPU</div>
+                                <div class="text-muted mt-1 sidebar-status-caption">CPU</div>
+                                <span id="cpu-usage-text-compact" class="sidebar-status-value d-none">-- %</span>
                             </div>
                             <!-- Memory Ring -->
                             <div title="Memory Usage">
@@ -247,7 +718,8 @@
                                     <svg><circle class="ring-bg" cx="27.5" cy="27.5" r="25"></circle><circle id="mem-ring-fg" class="ring-fg" cx="27.5" cy="27.5" r="25" stroke="var(--bs-success)"></circle></svg>
                                     <span id="mem-usage-text" class="fw-bold"></span>
                                 </div>
-                                <div class="text-muted mt-1">Mem</div>
+                                <div class="text-muted mt-1 sidebar-status-caption">Mem</div>
+                                <span id="mem-usage-text-compact" class="sidebar-status-value d-none">-- %</span>
                             </div>
                         </div>
                     </div>
@@ -255,7 +727,7 @@
             </nav>
 
             <main class="col-12 col-md-9 ms-md-auto col-lg-10 ms-lg-auto px-md-4 main-content" id="analyser-view">
-                <header class="text-center mb-4 header">
+                <header class="text-center mb-4 header analyser-shell page-shell">
                     <button class="btn btn-outline-secondary d-md-none position-absolute top-0 start-0 m-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar">
                         <i class="bi bi-list"></i>
                     </button>
@@ -271,61 +743,71 @@
                             <li><button class="dropdown-item d-flex align-items-center" type="button" data-bs-theme-value="auto"><i class="bi bi-circle-half me-2"></i> Auto</button></li>
                         </ul>
                     </div>
-                    <h1 class="display-6">AI-Powered Interaction Analysis</h1>
-                    <p class="text-white-50">Upload customer call audio and a supporting screenshot to generate a detailed analysis.</p>
+                    <div class="page-kicker mb-2">Workspace</div>
+                    <h1 class="display-6 mb-2">Analyser</h1>
+                    <p class="mb-0 mx-auto page-intro">Run a focused manual analysis for one interaction. Upload evidence, choose the default models, and review the routed LangGraph output in one place.</p>
                 </header>
 
-                <div id="analyser-controls-view">
-                    <div class="row">
-                        <div class="col-lg-7">
-                            <div class="card card-glass mb-4 h-100" id="upload-card">
-                                <div class="card-header"><h5 class="mb-0">Upload Files</h5></div>
-                                <div class="card-body p-4">
-                                    <form id="upload-form">
-                                        <div class="row mb-4">
-                                            <div class="col">
+                <div id="analyser-controls-view" class="analyser-shell">
+                    <div class="card analyser-main-card mb-4" id="upload-card">
+                        <div class="card-body p-4 p-lg-5">
+                            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+                                <div>
+                                    <div class="page-kicker mb-2">Manual Intake</div>
+                                    <div class="section-title">Create a single interaction analysis</div>
+                                    <p class="section-subtitle">Add audio or screenshot evidence, tune the model pair, and optionally allow approvals in the same run.</p>
+                                </div>
+                                <button type="button" id="clear-gpu-btn" class="btn btn-outline-danger btn-sm text-nowrap"><span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span><i class="bi bi-recycle me-1"></i><span class="btn-text">Clear Cache</span></button>
+                            </div>
+
+                            <form id="upload-form">
+                                <div class="analyser-grid">
+                                    <div class="analyser-pane">
+                                        <div class="section-title">Evidence Upload</div>
+                                        <div class="subtext">Provide one or both evidence types for the routed analysis flow.</div>
+                                        <div class="row g-3 mb-4">
+                                            <div class="col-md-6">
                                                 <label for="audio" class="form-label fw-semibold small"><i class="bi bi-mic-fill me-2"></i>Customer Call Audio</label>
                                                 <input type="file" class="form-control form-control-sm" id="audio" name="audio" accept="audio/*">
                                             </div>
-                                            <div class="col">
+                                            <div class="col-md-6">
                                                 <label for="screenshot" class="form-label fw-semibold small"><i class="bi bi-image me-2"></i>Supporting Screenshot</label>
                                                 <input type="file" class="form-control form-control-sm" id="screenshot" name="screenshot" accept="image/*">
                                             </div>
                                         </div>
-                                        <input type="hidden" name="step_order" value="ocr,transcribe,summarize">
-                                        <div class="row g-2 mt-3">
-                                            <div class="col"><button type="submit" class="btn btn-primary btn-xs w-100"><i class="bi bi-magic me-1"></i>Analyse</button></div>
-                                            <div class="col"><button type="button" id="clear-session-btn" class="btn btn-secondary btn-xs w-100 text-nowrap"><i class="bi bi-eraser-fill me-1"></i>Clear</button></div>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-5">
-                            <div class="card card-glass mb-4 h-100">
-                                <div class="card-header"><h5 class="mb-0"><i class="bi bi-gear-fill me-2"></i>Settings & Controls</h5></div>
-                                <div class="card-body p-4">
-                                    <div class="vstack gap-3">
-                                        <div>
-                                            <label for="agent-model" class="form-label small">Agent Model</label>
-                                            <select class="form-select form-select-sm" id="agent-model" name="agent_model" form="upload-form">
-                                                <!-- Options will be populated by JavaScript -->
-                                            </select>
-                                        </div>
-                                        <div class="row g-2 align-items-end">
-                                            <div class="col-8">
-                                                <label for="whisper-model" class="form-label small">Whisper Model</label>
-                                                <select class="form-select form-select-sm" id="whisper-model" name="model" form="upload-form">
-                                                    <!-- Options will be populated by JavaScript -->
-                                                </select>
+                                        <div class="analyser-checks small">
+                                            <div class="form-check form-switch mt-2">
+                                                <input class="form-check-input" type="checkbox" id="require-human-review" name="require_human_review" form="upload-form">
+                                                <label class="form-check-label" for="require-human-review">Require human review gate for uncertain billing evidence</label>
                                             </div>
-                                            <div class="col-4">
-                                                <button type="button" id="clear-gpu-btn" class="btn btn-outline-danger btn-xs w-100 text-nowrap"><span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span><i class="bi bi-recycle me-1"></i><span class="btn-text">Clear Cache</span></button>
+                                            <div class="form-check form-switch mt-2">
+                                                <input class="form-check-input" type="checkbox" id="approve-actions" name="approve_actions" form="upload-form">
+                                                <label class="form-check-label" for="approve-actions">Approve issue-based operational action during this run</label>
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div class="analyser-pane">
+                                        <div class="section-title">Run Controls</div>
+                                        <div class="subtext">Select the default model pair used for transcription and decisioning.</div>
+                                        <div class="vstack gap-3">
+                                            <div>
+                                                <label for="agent-model" class="form-label small">Agent Model</label>
+                                                <select class="form-select form-select-sm" id="agent-model" name="agent_model" form="upload-form"></select>
+                                            </div>
+                                            <div>
+                                                <label for="whisper-model" class="form-label small">Whisper Model</label>
+                                                <select class="form-select form-select-sm" id="whisper-model" name="model" form="upload-form"></select>
+                                            </div>
+                                        </div>
+                                        <div class="analyser-actions mt-4">
+                                            <button type="submit" class="btn btn-primary"><i class="bi bi-magic me-1"></i>Analyse</button>
+                                            <button type="button" id="clear-session-btn" class="btn btn-outline-secondary"><i class="bi bi-eraser-fill me-1"></i>Clear</button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                                <input type="hidden" name="step_order" value="ocr,transcribe,summarize">
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -333,13 +815,13 @@
                 <!-- Workflow View -->
                 <div id="workflow" class="card card-glass mb-4" style="display: none;">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Analysis in Progress...</h5>
+                        <h5 class="mb-0">LangGraph Analysis in Progress...</h5>
                         <button id="cancel-analysis-btn" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Cancel</button>
                     </div>
                     <div class="card-body p-4">
                         <div class="row text-center">
                             <!-- Step 1: OCR -->
-                            <div id="step-ocr" class="col-md-3 workflow-step">
+                            <div id="step-ocr" class="col-6 col-md-2 workflow-step">
                                 <div class="workflow-icon-wrapper mx-auto mb-2">
                                     <i class="bi bi-card-image fs-4"></i>
                                     <span class="status-badge"></span>
@@ -351,7 +833,7 @@
                                 <div class="workflow-connector"></div>
                             </div>
                             <!-- Step 2: Transcribe -->
-                            <div id="step-transcribe" class="col-md-3 workflow-step">
+                            <div id="step-transcribe" class="col-6 col-md-2 workflow-step">
                                 <div class="workflow-icon-wrapper mx-auto mb-2">
                                     <i class="bi bi-mic fs-4"></i>
                                     <span class="status-badge"></span>
@@ -362,8 +844,20 @@
                                 </div>
                                 <div class="workflow-connector"></div>
                             </div>
-                            <!-- Step 3: Summarize -->
-                            <div id="step-summarize" class="col-md-3 workflow-step">
+                            <!-- Step 3: Classify -->
+                            <div id="step-classify" class="col-6 col-md-2 workflow-step">
+                                <div class="workflow-icon-wrapper mx-auto mb-2">
+                                    <i class="bi bi-diagram-3 fs-4"></i>
+                                    <span class="status-badge"></span>
+                                </div>
+                                <p class="mb-1 fw-bold">Routing Issue</p>
+                                <div class="progress" style="height: 5px;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-primary"></div>
+                                </div>
+                                <div class="workflow-connector"></div>
+                            </div>
+                            <!-- Step 4: Summarize -->
+                            <div id="step-summarize" class="col-6 col-md-2 workflow-step">
                                 <div class="workflow-icon-wrapper mx-auto mb-2">
                                     <i class="bi bi-lightbulb fs-4"></i>
                                     <span class="status-badge"></span>
@@ -374,8 +868,20 @@
                                 </div>
                                 <div class="workflow-connector"></div>
                             </div>
-                            <!-- Step 4: Cleanup -->
-                            <div id="step-cleanup" class="col-md-3 workflow-step">
+                            <!-- Step 5: Review -->
+                            <div id="step-review" class="col-6 col-md-2 workflow-step">
+                                <div class="workflow-icon-wrapper mx-auto mb-2">
+                                    <i class="bi bi-person-check fs-4"></i>
+                                    <span class="status-badge"></span>
+                                </div>
+                                <p class="mb-1 fw-bold">Review Gate</p>
+                                <div class="progress" style="height: 5px;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar bg-primary"></div>
+                                </div>
+                                <div class="workflow-connector"></div>
+                            </div>
+                            <!-- Step 6: Cleanup -->
+                            <div id="step-cleanup" class="col-6 col-md-2 workflow-step">
                                 <div class="workflow-icon-wrapper mx-auto mb-2">
                                     <i class="bi bi-recycle fs-4"></i>
                                     <span class="status-badge"></span>
@@ -396,6 +902,29 @@
                         <h5 class="mb-0">Analysis Results</h5>
                     </div>
                     <div class="card-body">
+                        <div id="agent-trace" class="border rounded p-3 mb-3 bg-body-tertiary">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong><i class="bi bi-diagram-3 me-2"></i>LangGraph Decision Trace</strong>
+                            </div>
+                            <div class="row g-2 small">
+                                <div class="col-md-4">
+                                    <div class="text-muted">Routed Category</div>
+                                    <div id="trace-category" class="fw-semibold">N/A</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-muted">Specialist Path</div>
+                                    <div id="trace-specialist" class="fw-semibold">General support specialist</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-muted">Review Required</div>
+                                    <div id="trace-review-required" class="fw-semibold">No</div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-muted">Review Reason</div>
+                                    <div id="trace-review-reason" class="fw-semibold">No manual review required.</div>
+                                </div>
+                            </div>
+                        </div>
                         <ul class="nav nav-tabs" id="resultTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary-panel" type="button" role="tab">
@@ -434,131 +963,357 @@
 
             <!-- Dashboard View -->
             <main class="col-12 col-md-9 ms-md-auto col-lg-10 ms-lg-auto px-md-4 main-content" id="dashboard-view" style="display: none;">
-                <header class="text-center mb-4">
-                    <h1 class="display-6">Analysis History</h1>
-                    <p class="text-white-50 mb-0">Review previously processed interactions.</p>
+                <header class="text-center mb-4 dashboard-shell page-shell">
+                    <div class="page-kicker mb-2">Operations</div>
+                    <h1 class="display-6 mb-2">Dashboard</h1>
+                    <p class="mb-0 mx-auto page-intro">Track monitor activity, review intake results, and handle approvals without the page feeling like three dashboards stacked together.</p>
                 </header>
+                <div class="dashboard-shell">
+                    <div class="card dashboard-overview mb-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                                <div>
+                                    <div class="page-kicker mb-2">Monitor Overview</div>
+                                    <div class="section-title">Folder Intake Monitor</div>
+                                    <p class="section-subtitle">A quick operational snapshot first. Expanded diagnostics stay one click away.</p>
+                                </div>
+                                <button type="button" id="dashboard-scan-monitor-btn" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Scan Now</button>
+                            </div>
 
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div class="btn-group" role="group" aria-label="View toggle">
-                        <input type="radio" class="btn-check" name="view-toggle" id="list-view-btn" autocomplete="off">
-                        <label class="btn btn-sm btn-outline-secondary" for="list-view-btn"><i class="bi bi-list-ul me-1"></i> List View</label>
+                            <div class="dashboard-mini-grid mb-3">
+                                <div class="dashboard-mini-card">
+                                    <span class="label">Monitor Active</span>
+                                    <span class="value" id="dashboard-monitor-active-status">--</span>
+                                </div>
+                                <div class="dashboard-mini-card">
+                                    <span class="label">Processing</span>
+                                    <span class="value" id="dashboard-monitor-scan-in-progress">--</span>
+                                </div>
+                                <div class="dashboard-mini-card">
+                                    <span class="label">Last Scan</span>
+                                    <span class="value" id="dashboard-monitor-last-scan">--</span>
+                                </div>
+                                <div class="dashboard-mini-card">
+                                    <span class="label">New Records</span>
+                                    <span class="value" id="dashboard-monitor-new-records">0</span>
+                                </div>
+                                <div class="dashboard-mini-card">
+                                    <span class="label">Duplicates Skipped</span>
+                                    <span class="value" id="dashboard-monitor-duplicates-skipped">0</span>
+                                </div>
+                            </div>
 
-                        <input type="radio" class="btn-check" name="view-toggle" id="table-view-btn" autocomplete="off" checked>
-                        <label class="btn btn-sm btn-outline-secondary" for="table-view-btn"><i class="bi bi-table me-1"></i> Audit Table</label>
+                            <div class="dashboard-meta-grid mb-3">
+                                <div class="dashboard-meta-item">
+                                    <div class="text-muted small mb-1">Current Folder</div>
+                                    <div id="dashboard-monitor-current-folder" class="fw-semibold text-break">--</div>
+                                </div>
+                                <div class="dashboard-meta-item">
+                                    <div class="text-muted small mb-1">Current File</div>
+                                    <div id="dashboard-monitor-current-file" class="fw-semibold text-break">--</div>
+                                </div>
+                                <div class="dashboard-meta-item">
+                                    <div class="text-muted small mb-1">Last Result</div>
+                                    <div id="dashboard-monitor-last-result" class="fw-semibold text-break">--</div>
+                                </div>
+                            </div>
+
+                            <div class="accordion settings-accordion" id="dashboard-monitor-details-accordion">
+                                <div class="accordion-item card-glass">
+                                    <h2 class="accordion-header" id="dashboard-monitor-details-heading">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dashboard-monitor-details-collapse" aria-expanded="false" aria-controls="dashboard-monitor-details-collapse">
+                                            More Monitor Details
+                                        </button>
+                                    </h2>
+                                    <div id="dashboard-monitor-details-collapse" class="accordion-collapse collapse" aria-labelledby="dashboard-monitor-details-heading" data-bs-parent="#dashboard-monitor-details-accordion">
+                                        <div class="accordion-body">
+                                            <div class="dashboard-mini-grid mb-3">
+                                                <div class="dashboard-mini-card">
+                                                    <span class="label">Thread</span>
+                                                    <span class="value" id="dashboard-monitor-thread-status">--</span>
+                                                </div>
+                                                <div class="dashboard-mini-card">
+                                                    <span class="label">Phase</span>
+                                                    <span class="value" id="dashboard-monitor-phase">--</span>
+                                                </div>
+                                                <div class="dashboard-mini-card">
+                                                    <span class="label">Files Seen</span>
+                                                    <span class="value" id="dashboard-monitor-files-seen">0</span>
+                                                </div>
+                                                <div class="dashboard-mini-card">
+                                                    <span class="label">Customers</span>
+                                                    <span class="value" id="dashboard-monitor-customers-count">0</span>
+                                                </div>
+                                                <div class="dashboard-mini-card">
+                                                    <span class="label">Accounts</span>
+                                                    <span class="value" id="dashboard-monitor-accounts-count">0</span>
+                                                </div>
+                                            </div>
+                                            <div class="dashboard-meta-grid">
+                                                <div class="dashboard-meta-item">
+                                                    <div class="text-muted small mb-1">Last Error</div>
+                                                    <div id="dashboard-monitor-last-error" class="fw-semibold text-break">None</div>
+                                                </div>
+                                                <div class="dashboard-meta-item">
+                                                    <div class="text-muted small mb-1">Artifacts</div>
+                                                    <div id="dashboard-monitor-artifacts-count" class="fw-semibold">0</div>
+                                                </div>
+                                                <div class="dashboard-meta-item">
+                                                    <div class="text-muted small mb-1">Payments</div>
+                                                    <div id="dashboard-monitor-payments-count" class="fw-semibold">0</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <input type="search" id="history-search-filter" class="form-control form-control-sm" placeholder="Search history..." style="max-width: 200px;">
-                        <button class="btn btn-sm btn-outline-success" id="export-csv-btn" style="display: none;"><i class="bi bi-download me-1"></i>Export CSV</button>
-                        <label for="history-date-filter" class="form-label small me-2 mb-0 text-nowrap">Filter by Date:</label>
-                        <input type="date" id="history-date-filter" class="form-control form-control-sm" style="width: 150px;">
+
+                    <div class="card card-glass dashboard-main-card mb-4">
+                        <div class="card-body p-4">
+                            <div class="dashboard-toolbar mb-3">
+                                <div>
+                                    <div class="section-title">Manual Analysis History</div>
+                                    <p class="section-subtitle">Review upload-driven analyses and approval decisions.</p>
+                                </div>
+                                <div class="dashboard-controls">
+                                    <div class="btn-group" role="group" aria-label="View toggle">
+                                        <input type="radio" class="btn-check" name="view-toggle" id="list-view-btn" autocomplete="off">
+                                        <label class="btn btn-sm btn-outline-secondary" for="list-view-btn"><i class="bi bi-list-ul me-1"></i> List View</label>
+
+                                        <input type="radio" class="btn-check" name="view-toggle" id="table-view-btn" autocomplete="off" checked>
+                                        <label class="btn btn-sm btn-outline-secondary" for="table-view-btn"><i class="bi bi-table me-1"></i> Table View</label>
+                                    </div>
+                                    <input type="search" id="history-search-filter" class="form-control form-control-sm" placeholder="Search history" style="max-width: 200px;">
+                                    <input type="date" id="history-date-filter" class="form-control form-control-sm" style="width: 150px;">
+                                    <button class="btn btn-sm btn-outline-success" id="export-csv-btn" style="display: none;"><i class="bi bi-download me-1"></i>Export CSV</button>
+                                </div>
+                            </div>
+
+                            <div id="dashboard-loading" class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                            </div>
+
+                            <div id="list-view-container">
+                                <div class="accordion" id="history-accordion"></div>
+                            </div>
+
+                            <div id="table-view-container" style="display: none;">
+                                <div class="table-responsive card-glass p-2 rounded">
+                                    <table class="table table-sm table-hover" id="history-table">
+                                        <thead></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <div id="dashboard-loading" class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
-                </div>
+                    <div class="accordion settings-accordion" id="dashboard-secondary-accordion">
+                        <div class="accordion-item card-glass">
+                            <h2 class="accordion-header" id="dashboard-secondary-heading">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#dashboard-secondary-collapse" aria-expanded="false" aria-controls="dashboard-secondary-collapse">
+                                    Customer Intake Data
+                                </button>
+                            </h2>
+                            <div id="dashboard-secondary-collapse" class="accordion-collapse collapse" aria-labelledby="dashboard-secondary-heading" data-bs-parent="#dashboard-secondary-accordion">
+                                <div class="accordion-body">
+                                    <div class="d-flex flex-column gap-4">
+                                        <div class="card card-glass dashboard-secondary-card">
+                                            <div class="card-header d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h5 class="mb-0">Monitored Customer Records</h5>
+                                                    <div class="small text-muted mt-1">Primary intake queue with issue classification, action status, and approvals.</div>
+                                                </div>
+                                                <button type="button" id="refresh-monitored-data-btn" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+                                            </div>
+                                            <div class="card-body">
+                                                <div id="monitor-list-view-container" style="display: none;">
+                                                    <div class="accordion" id="monitor-artifacts-accordion"></div>
+                                                </div>
+                                                <div id="monitor-table-view-container" class="table-responsive">
+                                                    <table class="table table-sm table-hover" id="monitor-artifacts-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Processed</th>
+                                                                <th>Customer</th>
+                                                                <th>Account</th>
+                                                                <th>Folder</th>
+                                                                <th>File</th>
+                                                                <th>Issue</th>
+                                                                <th>Action</th>
+                                                                <th>Status</th>
+                                                                <th>Approval</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr><td colspan="9" class="text-muted text-center">No monitored records yet.</td></tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                <div id="list-view-container">
-                    <div class="accordion" id="history-accordion">
-                    </div>
-                </div>
-
-                <div id="table-view-container" style="display: none;">
-                    <div class="table-responsive card-glass p-2 rounded">
-                        <table class="table table-sm table-hover" id="history-table">
-                            <thead></thead>
-                            <tbody></tbody>
-                        </table>
+                                        <div class="card card-glass dashboard-secondary-card">
+                                            <div class="card-header">
+                                                <h5 class="mb-0">Matched Payments</h5>
+                                                <div class="small text-muted mt-1">Secondary payment ledger linked to customer and account matches.</div>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-hover" id="monitor-payments-table">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Created</th>
+                                                                <th>Customer</th>
+                                                                <th>Account</th>
+                                                                <th>Amount</th>
+                                                                <th>Transaction ID</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr><td colspan="5" class="text-muted text-center">No matched payments yet.</td></tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
 
             <!-- Settings View -->
             <main class="col-12 col-md-9 ms-md-auto col-lg-10 ms-lg-auto px-md-4 main-content" id="settings-view" style="display: none;">
-                <header class="text-center mb-4">
-                    <h1 class="display-6">Settings</h1>
-                    <p class="text-white-50 mb-0">Configure default models and monitor system resources.</p>
+                <header class="text-center mb-4 settings-shell page-shell">
+                    <div class="page-kicker mb-2">Configuration</div>
+                    <h1 class="display-6 mb-2">Settings</h1>
+                    <p class="mb-0 mx-auto page-intro">Keep this page focused on what the app should remember. Live monitor state and approvals stay in Dashboard.</p>
                 </header>
+                <div class="settings-shell">
+                    <div class="card settings-panel mb-4">
+                        <div class="card-body p-4 p-lg-5">
+                            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+                                <div>
+                                    <div class="page-kicker mb-2">Core Setup</div>
+                                    <div class="section-title">What the app should remember</div>
+                                    <p class="section-subtitle">Configure intake paths, scan cadence, and default models. Operational status stays on Dashboard.</p>
+                                </div>
+                                <div class="badge rounded-pill text-bg-primary px-3 py-2">Minimal Mode</div>
+                            </div>
 
-                <!-- Resource Monitoring -->
-                <h5 class="mb-3">Resource Utilization</h5>
-                <div class="row mb-5">
-                    <div class="col-lg-3 col-md-6 mb-4">
-                        <div class="card card-glass h-100">
-                            <div class="card-body text-center">
-                                <h6 class="card-title text-muted"><i class="bi bi-gpu-card me-2"></i>GPU</h6>
-                                <p class="display-5 fw-bold mb-0" id="settings-gpu-usage">--</p>
-                                <small class="text-white-50" id="settings-gpu-details">N/A</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-md-6 mb-4">
-                        <div class="card card-glass h-100">
-                            <div class="card-body text-center">
-                                <h6 class="card-title text-muted"><i class="bi bi-cpu-fill me-2"></i>CPU</h6>
-                                <p class="display-5 fw-bold mb-0" id="settings-cpu-usage">-- %</p>
-                                <small class="text-white-50">Current Load</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-md-6 mb-4">
-                        <div class="card card-glass h-100">
-                            <div class="card-body text-center">
-                                <h6 class="card-title text-muted"><i class="bi bi-memory me-2"></i>RAM</h6>
-                                <p class="display-5 fw-bold mb-0" id="settings-ram-usage">-- %</p>
-                                <small class="text-white-50" id="settings-ram-details">-- / -- GB</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-3 col-md-6 mb-4">
-                        <div class="card card-glass h-100">
-                            <div class="card-body text-center">
-                                <h6 class="card-title text-muted"><i class="bi bi-device-hdd-fill me-2"></i>Storage</h6>
-                                <p class="display-5 fw-bold mb-0" id="settings-storage-usage">-- %</p>
-                                <small class="text-white-50" id="settings-storage-details">-- / -- GB</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                            <form id="settings-form">
+                                <div class="settings-grid">
+                                    <div class="settings-field field-span-2">
+                                        <label for="customer-data-root" class="form-label">Customer Data Folder</label>
+                                        <div class="input-group">
+                                            <input id="customer-data-root" class="form-control" placeholder="C:\\Data\\customer_data">
+                                            <button type="button" id="browse-customer-data-root" class="btn btn-outline-secondary">Browse</button>
+                                        </div>
+                                        <div class="form-text">One parent folder containing customer or account-specific subfolders.</div>
+                                    </div>
 
-                <!-- Model Configuration -->
-                <h5 class="mb-3">Model Configuration</h5>
-                <div class="card card-glass mb-4">
-                    <div class="card-body">
-                        <form id="settings-form">
-                            <div class="row">
-                                <div class="col-md-6 mb-3"><label for="default-agent-model" class="form-label">Default Agent Model</label><select id="default-agent-model" class="form-select">
-                                    <!-- Options will be populated by JavaScript -->
-                                </select></div>
-                                <div class="col-md-6 mb-3"><label for="default-whisper" class="form-label">Default Whisper Model</label><select id="default-whisper" class="form-select"><!-- Options will be populated by JavaScript --></select></div>
-                            </div>
-                            <div class="d-flex justify-content-end gap-2 mt-3">
-                                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle-fill me-1"></i>Save Configuration</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                                    <div class="settings-field field-span-2">
+                                        <label for="customer-excel-path" class="form-label">Customer Mapping Excel</label>
+                                        <div class="input-group">
+                                            <input id="customer-excel-path" class="form-control" placeholder="C:\\Data\\customer_mapping.xlsx">
+                                            <button type="button" id="browse-customer-excel-path" class="btn btn-outline-secondary">Browse</button>
+                                        </div>
+                                        <div class="form-text">Maps folder names to customer, phone, and multi-account records.</div>
+                                    </div>
 
-                <div class="row">
-                    <div class="col-lg-6 mb-4">
-                        <h5 class="mb-3">Agent Model Downloader (Ollama)</h5>
-                        <div class="card card-glass">
-                            <div class="card-body">
-                                <p class="card-text small text-muted">Pre-download agent models to make them available for analysis.</p>
-                                <div id="agent-model-downloader-list" class="list-group list-group-flush">
-                                    <!-- List will be populated by JavaScript -->
+                                    <div class="settings-field">
+                                        <label for="monitor-interval-seconds" class="form-label">Monitor Interval</label>
+                                        <input id="monitor-interval-seconds" type="number" min="5" step="1" class="form-control" value="15">
+                                        <div class="form-text">Polling cadence in seconds.</div>
+                                    </div>
+
+                                    <div class="settings-field">
+                                        <label for="default-whisper" class="form-label">Default Whisper Model</label>
+                                        <select id="default-whisper" class="form-select"></select>
+                                        <div class="form-text">Used for unattended audio ingestion.</div>
+                                    </div>
+
+                                    <div class="settings-field field-span-2">
+                                        <label for="default-agent-model" class="form-label">Default Agent Model</label>
+                                        <select id="default-agent-model" class="form-select"></select>
+                                        <div class="form-text">Used for categorization, summary generation, and action planning.</div>
+                                    </div>
+                                </div>
+
+                                <div class="settings-actions mt-4">
+                                    <div class="text-muted small">Changes apply to both manual analysis defaults and background customer-data scans.</div>
+                                    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-circle-fill me-1"></i>Save Configuration</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="accordion settings-accordion" id="settings-advanced-accordion">
+                        <div class="accordion-item card-glass mb-3">
+                            <h2 class="accordion-header" id="settings-operational-heading">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#settings-operational-collapse" aria-expanded="false" aria-controls="settings-operational-collapse">
+                                    Operational Tools
+                                </button>
+                            </h2>
+                            <div id="settings-operational-collapse" class="accordion-collapse collapse" aria-labelledby="settings-operational-heading" data-bs-parent="#settings-advanced-accordion">
+                                <div class="accordion-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                        <div>
+                                            <div class="fw-semibold">Manual Monitor Scan</div>
+                                            <div class="small text-muted">Use this only when you want to force an immediate scan outside the normal polling cycle.</div>
+                                        </div>
+                                        <button type="button" id="scan-monitor-btn" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Scan Now</button>
+                                    </div>
+
+                                    <div class="settings-compact-stats">
+                                        <div class="settings-compact-stat">
+                                            <span class="label">GPU</span>
+                                            <span class="value" id="settings-gpu-usage">--</span>
+                                            <div class="small text-muted mt-1" id="settings-gpu-details">N/A</div>
+                                        </div>
+                                        <div class="settings-compact-stat">
+                                            <span class="label">CPU</span>
+                                            <span class="value" id="settings-cpu-usage">-- %</span>
+                                            <div class="small text-muted mt-1">Current Load</div>
+                                        </div>
+                                        <div class="settings-compact-stat">
+                                            <span class="label">RAM</span>
+                                            <span class="value" id="settings-ram-usage">-- %</span>
+                                            <div class="small text-muted mt-1" id="settings-ram-details">-- / -- GB</div>
+                                        </div>
+                                        <div class="settings-compact-stat">
+                                            <span class="label">Storage</span>
+                                            <span class="value" id="settings-storage-usage">-- %</span>
+                                            <div class="small text-muted mt-1" id="settings-storage-details">-- / -- GB</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="col-lg-6 mb-4">
-                        <h5 class="mb-3">Transcription Model Downloader (Whisper)</h5>
-                        <div class="card card-glass">
-                            <div class="card-body">
-                                <p class="card-text small text-muted">Pre-download transcription models for offline use.</p>
-                                <div id="whisper-model-downloader-list" class="list-group list-group-flush">
-                                    <!-- List will be populated by JavaScript -->
+
+                        <div class="accordion-item card-glass">
+                            <h2 class="accordion-header" id="settings-models-heading">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#settings-models-collapse" aria-expanded="false" aria-controls="settings-models-collapse">
+                                    Model Downloads
+                                </button>
+                            </h2>
+                            <div id="settings-models-collapse" class="accordion-collapse collapse" aria-labelledby="settings-models-heading" data-bs-parent="#settings-advanced-accordion">
+                                <div class="accordion-body">
+                                    <div class="row g-4">
+                                        <div class="col-lg-6">
+                                            <h6 class="mb-3">Agent Models</h6>
+                                            <div id="agent-model-downloader-list" class="list-group list-group-flush"></div>
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <h6 class="mb-3">Whisper Models</h6>
+                                            <div id="whisper-model-downloader-list" class="list-group list-group-flush"></div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -635,6 +1390,35 @@
         });
         // --- End Theme Switcher Logic ---
 
+        const getStoredSidebarState = () => localStorage.getItem('sidebar-collapsed') === 'true';
+        const setStoredSidebarState = (collapsed) => localStorage.setItem('sidebar-collapsed', String(collapsed));
+
+        function applySidebarState(collapsed) {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('sidebar-collapse-icon');
+            const label = document.querySelector('#sidebar-collapse-btn .toggle-label');
+            if (!sidebar) return;
+
+            sidebar.classList.toggle('collapsed', collapsed);
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            if (icon) {
+                icon.className = collapsed ? 'bi bi-chevron-right' : 'bi bi-chevron-left';
+            }
+            if (label) {
+                label.textContent = collapsed ? 'Expand Sidebar' : 'Collapse Sidebar';
+            }
+        }
+
+        function initializeSidebarCollapse() {
+            const button = document.getElementById('sidebar-collapse-btn');
+            applySidebarState(getStoredSidebarState());
+            button?.addEventListener('click', () => {
+                const nextState = !document.getElementById('sidebar').classList.contains('collapsed');
+                setStoredSidebarState(nextState);
+                applySidebarState(nextState);
+            });
+        }
+
         // --- Sidebar Toggle Logic for Mobile ---
         const sidebar = document.getElementById('sidebar');
         const sidebarBackdrop = document.getElementById('sidebar-backdrop');
@@ -698,10 +1482,14 @@
                     
                     setRingValue(document.getElementById('gpu-ring-fg'), percent_used);
                     document.getElementById('gpu-usage-text').textContent = `${Math.round(percent_used)}%`;
+                    const gpuCompact = document.getElementById('gpu-usage-text-compact');
+                    if (gpuCompact) gpuCompact.textContent = `${Math.round(percent_used)}%`;
                     gpuContainer.title = `GPU Memory: ${used_gb}GB / ${total_gb}GB`;
                 } else {
                     gpuContainer.style.display = 'none';
                     cpuOnlyContainer.style.display = 'block';
+                    const gpuCompact = document.getElementById('gpu-usage-text-compact');
+                    if (gpuCompact) gpuCompact.textContent = 'N/A';
                 }
 
                 // Settings Page Metrics
@@ -732,11 +1520,15 @@
 
 
                 // Sidebar Metrics
-                setRingValue(document.getElementById('cpu-ring-fg'), data.cpu.percent);
+                setRingValue(document.getElementById('cpu-ring-fg'), data.cpu.percent || 0);
                 document.getElementById('cpu-usage-text').textContent = `${cpu_percent}%`;
+                const cpuCompact = document.getElementById('cpu-usage-text-compact');
+                if (cpuCompact) cpuCompact.textContent = `${cpu_percent}%`;
 
-                setRingValue(document.getElementById('mem-ring-fg'), mem_percent);
+                setRingValue(document.getElementById('mem-ring-fg'), Number(mem_percent) || 0);
                 document.getElementById('mem-usage-text').textContent = `${mem_percent}%`;
+                const memCompact = document.getElementById('mem-usage-text-compact');
+                if (memCompact) memCompact.textContent = `${mem_percent}%`;
 
             } catch (error) {
                 console.error("Could not update system info:", error);
@@ -749,6 +1541,7 @@
         }
 
         let analysisAbortController = null;
+        let monitorStatusInterval = null;
 
         // Main submission handler
         document.getElementById('upload-form').addEventListener('submit', async function(event) {
@@ -777,12 +1570,18 @@
             }
             formData.append('model', document.querySelector('#whisper-model').value);
             formData.append('agent_model', document.querySelector('#agent-model').value);
+            formData.append('require_human_review', document.querySelector('#require-human-review').checked ? 'true' : 'false');
+            formData.append('approve_actions', document.querySelector('#approve-actions').checked ? 'true' : 'false');
             
             const resultDiv = document.getElementById('result');
             const errorDiv = document.getElementById('error');
             const workflowDiv = document.getElementById('workflow');
             const uploadCard = document.getElementById('upload-card');
             const controlsView = document.getElementById('analyser-controls-view'); //
+            const traceCategoryEl = document.getElementById('trace-category');
+            const traceSpecialistEl = document.getElementById('trace-specialist');
+            const traceReviewRequiredEl = document.getElementById('trace-review-required');
+            const traceReviewReasonEl = document.getElementById('trace-review-reason');
 
             // Reset UI elements
             resetAnalysisUI();
@@ -809,7 +1608,9 @@
             const steps = {
                 ocr: getStep('step-ocr'),
                 transcribe: getStep('step-transcribe'),
+                classify: getStep('step-classify'),
                 summarize: getStep('step-summarize'),
+                review: getStep('step-review'),
                 cleanup: getStep('step-cleanup'),
             };
 
@@ -821,6 +1622,11 @@
                 step.progressBar.setAttribute('aria-valuenow', '0');
                 if (step.interval) clearInterval(step.interval);
             });
+
+            traceCategoryEl.textContent = 'N/A';
+            traceSpecialistEl.textContent = 'General support specialist';
+            traceReviewRequiredEl.textContent = 'No';
+            traceReviewReasonEl.textContent = 'No manual review required.';
 
             const results = {};
 
@@ -869,10 +1675,9 @@
                             if (data.error) throw new Error(data.error);
                             if (data.step === 'done') break;
 
-                            const { step, status, result, message } = data;
+                            const { step, status, result, message, required, specialist } = data;
                             const stepUI = steps[step];
 
-                            if (!stepUI) continue; // Ignore unknown steps
                             if (!stepUI) continue; // Ignore unknown steps
 
                             if (status === 'in_progress') {
@@ -899,11 +1704,31 @@
                                 stepUI.el.classList.remove('active');
                                 stepUI.el.classList.add('complete');
                                 results[step] = result;
+                                if (step === 'classify' && result) {
+                                    traceCategoryEl.textContent = result;
+                                    traceSpecialistEl.textContent = specialist || 'General support specialist';
+                                }
+                                if (step === 'review') {
+                                    traceReviewRequiredEl.textContent = required ? 'Yes' : 'No';
+                                    traceReviewReasonEl.textContent = message || 'No manual review required.';
+                                }
                             } else if (status === 'skipped') {
                                 if (stepUI.interval) clearInterval(stepUI.interval);
                                 stepUI.progressBar.style.width = '100%';
                                 stepUI.badge.innerHTML = '<i class="bi bi-skip-forward-fill text-muted"></i>';
                                 stepUI.el.classList.add('complete');
+                            } else if (status === 'action_required') {
+                                if (stepUI.interval) clearInterval(stepUI.interval);
+                                stepUI.progressBar.style.width = '100%';
+                                stepUI.progressBar.setAttribute('aria-valuenow', '100');
+                                stepUI.badge.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>';
+                                stepUI.el.classList.remove('active');
+                                stepUI.el.classList.add('complete');
+                                traceReviewRequiredEl.textContent = 'Yes';
+                                traceReviewReasonEl.textContent = message || 'Manual verification required.';
+                                if (message) {
+                                    results.review = message;
+                                }
                             }
                         } catch (e) {
                             console.error("Failed to parse JSON from stream:", line, e);
@@ -916,6 +1741,12 @@
                 document.getElementById('llm-summary').innerHTML = results.summarize ? results.summarize.replace(/\n/g, '<br>') : 'No summary generated.';
                 document.getElementById('transcription').textContent = results.transcribe || 'No transcription available.';
                 document.getElementById('ocr-text').textContent = Array.isArray(results.ocr) ? results.ocr.join('\n') : (results.ocr || 'No text found in image.');
+                if (results.classify) {
+                    showToast('Issue Routed', `LangGraph category: ${results.classify}`, 'info');
+                }
+                if (results.review) {
+                    showToast('Review Gate', results.review, 'warning');
+                }
                 
                 resultDiv.style.display = 'block';
                 const firstTab = new bootstrap.Tab(document.getElementById('summary-tab'));
@@ -966,6 +1797,8 @@
                 });
             });
             startSystemInfoUpdates();
+            startMonitorStatusUpdates();
+            initializeSidebarCollapse();
             setupNavigation();
             loadAndApplyConfig(); // Load config on initial startup
             populateModelDropdowns(); // Populate dropdowns on startup
@@ -1074,6 +1907,8 @@
                 navAnalyser.classList.remove('active');
                 navSettings.classList.remove('active');
                 loadHistory();
+                loadMonitorStatus();
+                loadMonitoredDashboardData();
             });
 
             navSettings.addEventListener('click', (e) => {
@@ -1104,11 +1939,15 @@
             document.getElementById('list-view-btn').addEventListener('change', () => {
                 document.getElementById('list-view-container').style.display = 'block';
                 document.getElementById('table-view-container').style.display = 'none';
+                document.getElementById('monitor-list-view-container').style.display = 'block';
+                document.getElementById('monitor-table-view-container').style.display = 'none';
                 document.getElementById('export-csv-btn').style.display = 'none';
             });
             document.getElementById('table-view-btn').addEventListener('change', () => {
                 document.getElementById('list-view-container').style.display = 'none';
                 document.getElementById('table-view-container').style.display = 'block';
+                document.getElementById('monitor-list-view-container').style.display = 'none';
+                document.getElementById('monitor-table-view-container').style.display = 'block';
                 document.getElementById('export-csv-btn').style.display = 'inline-block';
             });
 
@@ -1118,6 +1957,9 @@
                 const config = {
                     default_agent_model: document.getElementById('default-agent-model').value,
                     default_whisper: document.getElementById('default-whisper').value,
+                    customer_data_root: document.getElementById('customer-data-root').value.trim(),
+                    customer_excel_path: document.getElementById('customer-excel-path').value.trim(),
+                    monitor_interval_seconds: Number(document.getElementById('monitor-interval-seconds').value || 15),
                 };
                 try {
                     const response = await fetch('/api/config', {
@@ -1128,11 +1970,321 @@
                     if (!response.ok) throw new Error('Failed to save configuration.');
                     showToast('Success', 'Configuration saved successfully.', 'success');
                     loadAndApplyConfig(); // Re-load config to update all dropdowns
+                    loadMonitorStatus();
                 } catch (error) {
                     showToast('Error', error.message, 'danger');
                 }
             });
 
+            document.getElementById('browse-customer-data-root').addEventListener('click', async () => {
+                await browseForPath('/api/browse/folder', 'customer-data-root');
+            });
+
+            document.getElementById('browse-customer-excel-path').addEventListener('click', async () => {
+                await browseForPath('/api/browse/excel', 'customer-excel-path');
+            });
+
+            document.getElementById('scan-monitor-btn').addEventListener('click', async () => {
+                const button = document.getElementById('scan-monitor-btn');
+                button.disabled = true;
+                try {
+                    const response = await fetch('/api/monitor/scan-now', { method: 'POST' });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Failed to scan customer data folder.');
+                    showToast('Scan Complete', data.message || 'Customer-data scan completed.', 'success');
+                    await loadMonitorStatus();
+                } catch (error) {
+                    showToast('Error', error.message, 'danger');
+                } finally {
+                    button.disabled = false;
+                }
+            });
+
+            document.getElementById('dashboard-scan-monitor-btn').addEventListener('click', async () => {
+                const button = document.getElementById('dashboard-scan-monitor-btn');
+                button.disabled = true;
+                try {
+                    const response = await fetch('/api/monitor/scan-now', { method: 'POST' });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Failed to scan customer data folder.');
+                    showToast('Scan Complete', data.message || 'Customer-data scan completed.', 'success');
+                    await loadMonitorStatus();
+                    await loadMonitoredDashboardData();
+                } catch (error) {
+                    showToast('Error', error.message, 'danger');
+                } finally {
+                    button.disabled = false;
+                }
+            });
+
+            document.getElementById('refresh-monitored-data-btn').addEventListener('click', async () => {
+                await loadMonitoredDashboardData();
+            });
+
+        }
+
+        function startMonitorStatusUpdates() {
+            if (monitorStatusInterval) return;
+            loadMonitorStatus();
+            monitorStatusInterval = setInterval(loadMonitorStatus, 3000);
+        }
+
+        async function browseForPath(endpoint, inputId) {
+            const input = document.getElementById(inputId);
+            try {
+                const response = await fetch(endpoint, { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to open picker.');
+                if (data.path) {
+                    input.value = data.path;
+                }
+            } catch (error) {
+                showToast('Error', error.message, 'danger');
+            }
+        }
+
+        async function loadMonitorStatus() {
+            try {
+                const response = await fetch('/api/monitor/status');
+                if (!response.ok) throw new Error('Failed to load monitor status.');
+                const data = await response.json();
+                const runtime = data.runtime || {};
+                const stats = data.stats || {};
+
+                const panels = [
+                    {
+                        thread: 'monitor-thread-status',
+                        active: 'monitor-active-status',
+                        lastScan: 'monitor-last-scan',
+                        lastError: 'monitor-last-error',
+                        customers: 'monitor-customers-count',
+                        accounts: 'monitor-accounts-count',
+                        artifacts: 'monitor-artifacts-count',
+                        payments: 'monitor-payments-count',
+                    },
+                    {
+                        thread: 'dashboard-monitor-thread-status',
+                        active: 'dashboard-monitor-active-status',
+                        inProgress: 'dashboard-monitor-scan-in-progress',
+                        currentFolder: 'dashboard-monitor-current-folder',
+                        currentFile: 'dashboard-monitor-current-file',
+                        phase: 'dashboard-monitor-phase',
+                        lastScan: 'dashboard-monitor-last-scan',
+                        lastError: 'dashboard-monitor-last-error',
+                        lastResult: 'dashboard-monitor-last-result',
+                        filesSeen: 'dashboard-monitor-files-seen',
+                        newRecords: 'dashboard-monitor-new-records',
+                        duplicatesSkipped: 'dashboard-monitor-duplicates-skipped',
+                        customers: 'dashboard-monitor-customers-count',
+                        accounts: 'dashboard-monitor-accounts-count',
+                        artifacts: 'dashboard-monitor-artifacts-count',
+                        payments: 'dashboard-monitor-payments-count',
+                    }
+                ];
+
+                panels.forEach((panel) => {
+                    const setText = (id, value) => {
+                        const el = document.getElementById(id);
+                        if (el) el.textContent = value;
+                    };
+                    setText(panel.thread, runtime.thread_running ? 'Running' : 'Stopped');
+                    setText(panel.active, runtime.monitor_active ? 'Yes' : 'No');
+                    if (panel.inProgress) setText(panel.inProgress, runtime.scan_in_progress ? 'Yes' : 'No');
+                    if (panel.currentFolder) setText(panel.currentFolder, runtime.current_folder || '--');
+                    if (panel.currentFile) setText(panel.currentFile, runtime.current_file || '--');
+                    if (panel.phase) setText(panel.phase, runtime.scan_phase || 'idle');
+                    setText(panel.lastScan, runtime.last_scan_at ? new Date(runtime.last_scan_at).toLocaleString() : '--');
+                    setText(panel.lastError, runtime.last_error || 'None');
+                    if (panel.lastResult) setText(panel.lastResult, runtime.last_result_message || '--');
+                    if (panel.filesSeen) setText(panel.filesSeen, runtime.last_scan_processed_files ?? 0);
+                    if (panel.newRecords) setText(panel.newRecords, runtime.last_scan_new_records ?? 0);
+                    if (panel.duplicatesSkipped) setText(panel.duplicatesSkipped, runtime.last_scan_duplicates_skipped ?? 0);
+                    setText(panel.customers, stats.customers ?? 0);
+                    setText(panel.accounts, stats.accounts ?? 0);
+                    setText(panel.artifacts, stats.artifacts ?? 0);
+                    setText(panel.payments, stats.payments ?? 0);
+                });
+
+                const dashboardView = document.getElementById('dashboard-view');
+                if (dashboardView && dashboardView.style.display !== 'none') {
+                    if (runtime.scan_in_progress || runtime.last_scan_new_records > 0 || runtime.last_error) {
+                        loadMonitoredDashboardData();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading monitor status:', error);
+            }
+        }
+
+        async function loadMonitoredDashboardData() {
+            await Promise.all([loadMonitorArtifactsTable(), loadMonitorPaymentsTable()]);
+        }
+
+        function getMonitoredApprovalCellHtml(row) {
+            const status = row.action_status || 'not_started';
+            if (['awaiting_approval', 'planned', 'approved'].includes(status)) {
+                return `
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-xs btn-outline-success approve-monitor-action-btn" data-id="${row.id}" title="Approve and execute monitored action">
+                            <i class="bi bi-check2-circle"></i>
+                        </button>
+                        <button class="btn btn-xs btn-outline-warning reject-monitor-action-btn" data-id="${row.id}" title="Reject monitored action">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            return '<span class="badge text-bg-secondary">N/A</span>';
+        }
+
+        function bindMonitoredApprovalButtons() {
+            document.querySelectorAll('.approve-monitor-action-btn').forEach((button) => {
+                button.addEventListener('click', approveMonitorArtifactAction);
+            });
+            document.querySelectorAll('.reject-monitor-action-btn').forEach((button) => {
+                button.addEventListener('click', rejectMonitorArtifactAction);
+            });
+        }
+
+        async function loadMonitorArtifactsTable() {
+            const tbody = document.querySelector('#monitor-artifacts-table tbody');
+            const accordion = document.getElementById('monitor-artifacts-accordion');
+            try {
+                const response = await fetch('/api/monitor/artifacts');
+                if (!response.ok) throw new Error('Failed to load monitored customer records.');
+                const rows = await response.json();
+                tbody.innerHTML = '';
+                accordion.innerHTML = '';
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="text-muted text-center">No monitored records yet.</td></tr>';
+                    accordion.innerHTML = '<p class="text-center text-muted">No monitored records yet.</p>';
+                    return;
+                }
+
+                rows.forEach((row) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="text-nowrap">${row.processed_at ? new Date(row.processed_at).toLocaleString() : '--'}</td>
+                        <td>${row.customer_name || 'Unmapped'}</td>
+                        <td>${row.account_name || row.account_number || 'Unmapped'}</td>
+                        <td>${row.folder_name || '--'}</td>
+                        <td>${row.file_name || '--'}</td>
+                        <td>${row.issue_category || '--'}</td>
+                        <td>${row.proposed_action || '--'}</td>
+                        <td>${row.action_status || '--'}</td>
+                        <td>${getMonitoredApprovalCellHtml(row)}</td>
+                    `;
+                    tbody.appendChild(tr);
+
+                    const showApprovalButtons = ['awaiting_approval', 'planned', 'approved'].includes(row.action_status || '');
+                    const accordionItem = document.createElement('div');
+                    accordionItem.className = 'accordion-item card-glass';
+                    accordionItem.innerHTML = `
+                        <h2 class="accordion-header d-flex align-items-center" id="monitor-heading-${row.id}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#monitor-collapse-${row.id}" aria-expanded="false" aria-controls="monitor-collapse-${row.id}">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <div>
+                                        <span class="fw-bold text-primary"><i class="bi bi-folder2-open me-2"></i>${row.customer_name || 'Unmapped'} / ${row.account_name || row.account_number || 'Unmapped'}</span>
+                                    </div>
+                                    <div class="small text-muted text-nowrap me-3">${row.processed_at ? new Date(row.processed_at).toLocaleString() : '--'}</div>
+                                </div>
+                            </button>
+                            ${showApprovalButtons ? `
+                                <button class="btn btn-sm btn-outline-success approve-monitor-action-btn ms-2" data-id="${row.id}" title="Approve and execute monitored action"><i class="bi bi-check2-circle"></i></button>
+                                <button class="btn btn-sm btn-outline-warning reject-monitor-action-btn ms-2" data-id="${row.id}" title="Reject monitored action"><i class="bi bi-x-circle"></i></button>
+                            ` : ''}
+                        </h2>
+                        <div id="monitor-collapse-${row.id}" class="accordion-collapse collapse" aria-labelledby="monitor-heading-${row.id}" data-bs-parent="#monitor-artifacts-accordion">
+                            <div class="accordion-body small">
+                                <div><strong>Folder:</strong> ${row.folder_name || '--'}</div>
+                                <div><strong>File:</strong> ${row.file_name || '--'}</div>
+                                <div><strong>Issue Category:</strong> ${row.issue_category || '--'}</div>
+                                <div><strong>Specialist Path:</strong> ${row.specialist_path || '--'}</div>
+                                <div><strong>Proposed Action:</strong> ${row.proposed_action || '--'}</div>
+                                <div><strong>Action Status:</strong> ${row.action_status || '--'}</div>
+                                <div><strong>Action Result:</strong> ${row.action_result || '--'}</div>
+                                <div><strong>Payment Amount:</strong> ${row.payment_amount || '--'}</div>
+                                <div><strong>Payment Date:</strong> ${row.payment_datetime || '--'}</div>
+                                <div><strong>UPI Transaction ID:</strong> ${row.upi_transaction_id || '--'}</div>
+                            </div>
+                        </div>
+                    `;
+                    accordion.appendChild(accordionItem);
+                });
+                bindMonitoredApprovalButtons();
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-danger text-center">${error.message}</td></tr>`;
+                accordion.innerHTML = `<p class="text-center text-danger">${error.message}</p>`;
+            }
+        }
+
+        async function approveMonitorArtifactAction(event) {
+            event.stopPropagation();
+            const button = event.currentTarget;
+            const itemId = button.getAttribute('data-id');
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`/api/monitor/artifacts/${itemId}/approve-action`, { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to approve monitored action.');
+                showToast('Approved', data.message || 'Monitored action approved and processed.', 'success');
+                await loadMonitoredDashboardData();
+            } catch (error) {
+                showToast('Error', error.message, 'danger');
+                button.disabled = false;
+            }
+        }
+
+        async function rejectMonitorArtifactAction(event) {
+            event.stopPropagation();
+            const button = event.currentTarget;
+            const itemId = button.getAttribute('data-id');
+            const reason = prompt('Enter rejection reason (optional):', 'Rejected by supervisor') || 'Rejected by supervisor';
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`/api/monitor/artifacts/${itemId}/reject-action`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ reason })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to reject monitored action.');
+                showToast('Rejected', data.message || 'Monitored action rejected.', 'warning');
+                await loadMonitoredDashboardData();
+            } catch (error) {
+                showToast('Error', error.message, 'danger');
+                button.disabled = false;
+            }
+        }
+
+        async function loadMonitorPaymentsTable() {
+            const tbody = document.querySelector('#monitor-payments-table tbody');
+            try {
+                const response = await fetch('/api/monitor/payments');
+                if (!response.ok) throw new Error('Failed to load matched payments.');
+                const rows = await response.json();
+                tbody.innerHTML = '';
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">No matched payments yet.</td></tr>';
+                    return;
+                }
+
+                rows.forEach((row) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="text-nowrap">${row.created_at ? new Date(row.created_at).toLocaleString() : '--'}</td>
+                        <td>${row.customer_name || 'Unmapped'}</td>
+                        <td>${row.account_name || row.account_number || 'Unmapped'}</td>
+                        <td>${row.payment_amount || '--'}</td>
+                        <td>${row.upi_transaction_id || '--'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-danger text-center">${error.message}</td></tr>`;
+            }
         }
 
         async function loadModelStatuses() {
@@ -1339,6 +2491,12 @@
                     document.querySelectorAll('.delete-history-btn').forEach(button => {
                         button.addEventListener('click', deleteHistoryItem);
                     });
+                    document.querySelectorAll('.approve-action-btn').forEach(button => {
+                        button.addEventListener('click', approveHistoryAction);
+                    });
+                    document.querySelectorAll('.reject-action-btn').forEach(button => {
+                        button.addEventListener('click', rejectHistoryAction);
+                    });
                     document.getElementById('table-view-btn').disabled = false;
                     // Sync button visibility with the current view
                     if (document.getElementById('table-view-btn').checked) {
@@ -1400,12 +2558,16 @@
                 // Update Settings page
                 document.getElementById('default-agent-model').value = config.default_agent_model;
                 document.getElementById('default-whisper').value = config.default_whisper;
+                document.getElementById('customer-data-root').value = config.customer_data_root || '';
+                document.getElementById('customer-excel-path').value = config.customer_excel_path || '';
+                document.getElementById('monitor-interval-seconds').value = config.monitor_interval_seconds || 15;
                 // Populate dropdowns first, then apply the loaded config
                 await populateModelDropdowns(config);
 
                 // Update Analyser page
                 document.getElementById('agent-model').value = config.default_agent_model;
                 document.getElementById('whisper-model').value = config.default_whisper;
+                loadMonitorStatus();
 
             } catch (error) {
                 console.error('Error loading settings:', error);
@@ -1475,6 +2637,49 @@
             }
         }
 
+        async function approveHistoryAction(event) {
+            event.stopPropagation();
+            const button = event.currentTarget;
+            const itemId = button.getAttribute('data-id');
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`/api/history/${itemId}/approve-action`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to approve action.');
+                showToast('Approved', data.message || 'Action approved and processed.', 'success');
+                await loadHistory();
+            } catch (error) {
+                showToast('Error', error.message, 'danger');
+                button.disabled = false;
+            }
+        }
+
+        async function rejectHistoryAction(event) {
+            event.stopPropagation();
+            const button = event.currentTarget;
+            const itemId = button.getAttribute('data-id');
+            const reason = prompt('Enter rejection reason (optional):', 'Rejected by supervisor') || 'Rejected by supervisor';
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`/api/history/${itemId}/reject-action`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ reason })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to reject action.');
+                showToast('Rejected', data.message || 'Action rejected.', 'warning');
+                await loadHistory();
+            } catch (error) {
+                showToast('Error', error.message, 'danger');
+                button.disabled = false;
+            }
+        }
+
         function parseSummary(summaryText) {
             const data = {};
             const fields = ["Customer Name", "Issue Category", "Key Information", "Payment Date & Time", "Payment Amount", "Payer Details", "Payee Details", "UPI Transaction ID", "Recommended Next Step"];
@@ -1499,12 +2704,33 @@
             const table = document.getElementById('history-table');
             const thead = table.querySelector('thead');
             const tbody = table.querySelector('tbody');
+
+            const getApprovalCellHtml = (item) => {
+                const status = item.action_status || 'not_started';
+                if (['awaiting_approval', 'planned', 'approved'].includes(status)) {
+                    return `
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-xs btn-outline-success approve-action-btn" data-id="${item.id}" title="Approve and execute action">
+                                <i class="bi bi-check2-circle"></i>
+                            </button>
+                            <button class="btn btn-xs btn-outline-warning reject-action-btn" data-id="${item.id}" title="Reject action">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+                return '<span class="badge text-bg-secondary">N/A</span>';
+            };
             
             thead.innerHTML = `
                 <tr>
                     <th data-sort-dir="desc">Date <i class="bi bi-arrow-down"></i></th>
                     <th>Customer Name</th>
                     <th>Issue Category</th>
+                    <th>Specialist Path</th>
+                    <th>Proposed Action</th>
+                    <th>Action Status</th>
+                    <th>Approval</th>
                     <th>Payment Date</th>
                     <th>Payer</th>
                     <th>Payee</th>
@@ -1516,6 +2742,13 @@
 
             history.forEach(item => {
                 const summaryData = parseSummary(item.summary);
+                const specialistPath = item.specialist_path || (
+                    summaryData['Issue Category'] === 'Billing Issue / Account Deactivated'
+                        ? 'Billing specialist'
+                        : summaryData['Issue Category'] === 'Connectivity Issue'
+                            ? 'Connectivity and field-support specialist'
+                            : 'General support specialist'
+                );
                 const row = document.createElement('tr');
                 row.setAttribute('data-id', item.id);
                 row.setAttribute('data-timestamp', item.timestamp);
@@ -1523,6 +2756,10 @@
                     <td class="text-nowrap">${new Date(item.timestamp).toLocaleDateString()}</td>
                     <td>${summaryData['Customer Name'] || 'N/A'}</td>
                     <td>${summaryData['Issue Category']}</td>
+                    <td>${specialistPath}</td>
+                    <td>${item.proposed_action || 'N/A'}</td>
+                    <td>${item.action_status || 'not_started'}</td>
+                    <td>${getApprovalCellHtml(item)}</td>
                     <td>${summaryData['Payment Date & Time']}</td>
                     <td>${summaryData['Payer Details']}</td>
                     <td>${summaryData['Payee Details']}</td>
@@ -1544,6 +2781,13 @@
             });
             // Initial sort by date descending
             sortTable(table, 0);
+
+            document.querySelectorAll('.approve-action-btn').forEach(button => {
+                button.addEventListener('click', approveHistoryAction);
+            });
+            document.querySelectorAll('.reject-action-btn').forEach(button => {
+                button.addEventListener('click', rejectHistoryAction);
+            });
         }
 
         function sortTable(table, columnIndex) {
@@ -1616,6 +2860,20 @@
             const summary = item.summary ? item.summary.replace(/\n/g, '<br>') : 'No summary available.';
             const transcription = item.transcription || 'No transcription available.';
             const ocr = Array.isArray(item.ocr) ? item.ocr.join('\n') : (item.ocr || 'No text found in image.');
+            const summaryData = parseSummary(item.summary);
+            const specialistPath = item.specialist_path || (
+                summaryData['Issue Category'] === 'Billing Issue / Account Deactivated'
+                    ? 'Billing specialist'
+                    : summaryData['Issue Category'] === 'Connectivity Issue'
+                        ? 'Connectivity and field-support specialist'
+                        : 'General support specialist'
+            );
+            const reviewRequired = item.needs_human_review ? 'Yes' : 'No';
+            const reviewReason = item.review_reason || 'No manual review required.';
+            const proposedAction = item.proposed_action || 'N/A';
+            const actionStatus = item.action_status || 'not_started';
+            const actionResult = item.action_result || 'No action execution result available.';
+            const showApprovalButtons = ['awaiting_approval', 'planned', 'approved'].includes(actionStatus);
 
             return `
                 <div class="accordion-item card-glass" id="item-${item.id}" data-timestamp="${item.timestamp}">
@@ -1633,6 +2891,10 @@
                                 </div>
                             </div>
                         </button>
+                        ${showApprovalButtons ? `
+                        <button class="btn btn-sm btn-outline-success approve-action-btn ms-2" data-id="${item.id}" title="Approve and execute action"><i class="bi bi-check2-circle"></i></button>
+                        <button class="btn btn-sm btn-outline-warning reject-action-btn ms-2" data-id="${item.id}" title="Reject action"><i class="bi bi-x-circle"></i></button>
+                        ` : ''}
                         <button class="btn btn-sm btn-outline-danger delete-history-btn ms-auto me-2" data-id="${item.id}" title="Delete Item"><i class="bi bi-trash"></i></button>
                     </h2>
                     <div id="collapse-${item.id}" class="accordion-collapse collapse" aria-labelledby="heading-${item.id}" data-bs-parent="#history-accordion">
@@ -1640,6 +2902,25 @@
                             <div class="mb-3">
                                 <h6><i class="bi bi-card-text me-2"></i>AI Summary</h6>
                                 <p class="small" style="white-space: pre-wrap;">${summary}</p>
+                            </div>
+                            <hr>
+                            <div class="mb-3">
+                                <h6><i class="bi bi-diagram-3 me-2"></i>LangGraph Decision Trace</h6>
+                                <div class="small">
+                                    <div><strong>Issue Category:</strong> ${summaryData['Issue Category'] || 'Other Issues'}</div>
+                                    <div><strong>Specialist Path:</strong> ${specialistPath}</div>
+                                    <div><strong>Review Required:</strong> ${reviewRequired}</div>
+                                    <div><strong>Review Reason:</strong> ${reviewReason}</div>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="mb-3">
+                                <h6><i class="bi bi-lightning-charge me-2"></i>Operational Action</h6>
+                                <div class="small">
+                                    <div><strong>Proposed Action:</strong> ${proposedAction}</div>
+                                    <div><strong>Status:</strong> ${actionStatus}</div>
+                                    <div><strong>Result:</strong> ${actionResult}</div>
+                                </div>
                             </div>
                             <hr>
                             <div class="mb-3">

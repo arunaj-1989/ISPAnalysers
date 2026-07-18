@@ -9,3 +9,7 @@ transformers
 accelerate
 ollama
 Pillow
+langchain
+langgraph
+langchain-ollama
+openpyxl

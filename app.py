@@ -6,6 +6,7 @@ import re
 import sqlite3
 import threading
 import time
+from collections import OrderedDict
 import tkinter as tk
 from tkinter import filedialog
 from datetime import datetime
@@ -23,6 +24,75 @@ from openpyxl import load_workbook
 
 # Get the absolute path of the directory where this script is located
 project_root = os.path.dirname(os.path.abspath(__file__))
+
+def load_dotenv_file(file_path: str) -> bool:
+    """Load KEY=VALUE pairs from a .env file into os.environ if keys are missing."""
+    if not os.path.exists(file_path):
+        return False
+
+    loaded_any = False
+    with open(file_path, 'r', encoding='utf-8') as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+                loaded_any = True
+    return loaded_any
+
+
+# Load environment variables from .env if present.
+load_dotenv_file(os.path.join(project_root, '.env'))
+
+
+def _first_non_empty(*values: str | None) -> str:
+    for value in values:
+        if value and value.strip():
+            return value.strip()
+    return ''
+
+
+def configure_langsmith() -> bool:
+    """Enable LangSmith tracing only when an API key is configured."""
+    api_key = _first_non_empty(
+        os.getenv('LANGSMITH_API_KEY'),
+        os.getenv('LANGCHAIN_API_KEY'),
+        os.getenv('langsmith_api_key'),
+    )
+    if not api_key:
+        print('INFO: LangSmith disabled (no API key configured).')
+        return False
+
+    os.environ['LANGSMITH_API_KEY'] = api_key
+    os.environ['LANGCHAIN_API_KEY'] = api_key
+    os.environ.setdefault('LANGCHAIN_TRACING_V2', 'true')
+    os.environ.setdefault('LANGSMITH_TRACING', 'true')
+
+    project_name = _first_non_empty(
+        os.getenv('LANGSMITH_PROJECT'),
+        os.getenv('LANGCHAIN_PROJECT'),
+        os.getenv('langsmith_project'),
+    )
+    if project_name:
+        os.environ['LANGSMITH_PROJECT'] = project_name
+        os.environ['LANGCHAIN_PROJECT'] = project_name
+
+    endpoint = _first_non_empty(
+        os.getenv('LANGSMITH_ENDPOINT'),
+        os.getenv('langsmith_endpoint'),
+    )
+    if endpoint:
+        os.environ['LANGSMITH_ENDPOINT'] = endpoint
+
+    print('INFO: LangSmith tracing enabled.')
+    return True
+
+
+LANGSMITH_ENABLED = configure_langsmith()
 
 app = Flask(
     __name__,
@@ -70,27 +140,124 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(f"INFO: Using device: {DEVICE}")
 
 # --- Model Management ---
-# Use a dictionary to cache loaded models
-loaded_models = {}
+# Cache models by model@device key.
+loaded_models: OrderedDict[str, tuple[Any, str]] = OrderedDict()
+loaded_models_lock = threading.Lock()
+model_load_locks: dict[str, threading.Lock] = {}
+model_load_locks_lock = threading.Lock()
+gpu_scheduler_lock = threading.Lock()
+gpu_round_robin_index = 0
+
+WHISPER_DEVICE_POLICY = os.getenv('WHISPER_DEVICE_POLICY', 'most_free').strip().lower()
+WHISPER_ALLOWED_GPU_INDICES = os.getenv('WHISPER_CUDA_DEVICES', '').strip()
+WHISPER_MAX_CACHED_MODELS = int(os.getenv('WHISPER_MAX_CACHED_MODELS', '4') or 4)
+
+
+def _get_model_load_lock(cache_key: str) -> threading.Lock:
+    with model_load_locks_lock:
+        if cache_key not in model_load_locks:
+            model_load_locks[cache_key] = threading.Lock()
+        return model_load_locks[cache_key]
+
+
+def _enforce_model_cache_limit() -> None:
+    if WHISPER_MAX_CACHED_MODELS <= 0:
+        return
+    while len(loaded_models) > WHISPER_MAX_CACHED_MODELS:
+        evicted_key, _ = loaded_models.popitem(last=False)
+        print(f"INFO: Evicted Whisper model cache entry '{evicted_key}' due to cache limit.")
+    if DEVICE == 'cuda':
+        torch.cuda.empty_cache()
+
+
+def _parse_allowed_cuda_devices(all_devices: list[str]) -> list[str]:
+    if not WHISPER_ALLOWED_GPU_INDICES:
+        return all_devices
+
+    requested: list[str] = []
+    for raw_index in WHISPER_ALLOWED_GPU_INDICES.split(','):
+        candidate = raw_index.strip()
+        if not candidate:
+            continue
+        if candidate.isdigit():
+            requested.append(f'cuda:{candidate}')
+
+    allowed = [device for device in all_devices if device in requested]
+    if not allowed:
+        print('WARNING: WHISPER_CUDA_DEVICES set but no matching CUDA devices found. Falling back to all devices.')
+        return all_devices
+    return allowed
+
+
+def get_available_cuda_devices() -> list[str]:
+    if DEVICE != 'cuda' or not torch.cuda.is_available():
+        return []
+    all_devices = [f'cuda:{index}' for index in range(torch.cuda.device_count())]
+    return _parse_allowed_cuda_devices(all_devices)
+
+
+def pick_transcription_device() -> str:
+    """Pick a CUDA device for transcription, balancing across multiple GPUs."""
+    global gpu_round_robin_index
+    cuda_devices = get_available_cuda_devices()
+    if not cuda_devices:
+        return DEVICE
+
+    if WHISPER_DEVICE_POLICY == 'round_robin':
+        with gpu_scheduler_lock:
+            selected = cuda_devices[gpu_round_robin_index % len(cuda_devices)]
+            gpu_round_robin_index += 1
+        return selected
+
+    # Default policy: most free memory; tie-break with round robin.
+    ranked: list[tuple[int, str]] = []
+    for device in cuda_devices:
+        try:
+            gpu_index = int(device.split(':')[1])
+            free_mem, _ = torch.cuda.mem_get_info(gpu_index)
+            ranked.append((int(free_mem), device))
+        except Exception:
+            ranked.append((0, device))
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    top_free = ranked[0][0]
+    top_candidates = [device for free_mem, device in ranked if free_mem == top_free]
+
+    with gpu_scheduler_lock:
+        selected = top_candidates[gpu_round_robin_index % len(top_candidates)]
+        gpu_round_robin_index += 1
+    return selected
 
 def get_whisper_model(model_name: str):
     """Loads a Whisper model into memory, caching it for future use."""
-    if model_name in loaded_models:
-        print(f"INFO: Using cached Whisper model '{model_name}'.")
-        return loaded_models[model_name]
+    target_device = pick_transcription_device() if DEVICE == 'cuda' else DEVICE
+    cache_key = f"{model_name}@{target_device}"
 
-    # Simple cache eviction: unload all other models to make space
-    if loaded_models:
-        print("INFO: Unloading existing models to free up memory.")
-        loaded_models.clear()
-        if DEVICE == 'cuda':
-            torch.cuda.empty_cache()
+    with loaded_models_lock:
+        if cache_key in loaded_models:
+            model, cached_device = loaded_models[cache_key]
+            loaded_models.move_to_end(cache_key)
+            print(f"INFO: Using cached Whisper model '{model_name}' on {cached_device}.")
+            return model, cached_device
 
-    print(f"INFO: Loading Whisper model '{model_name}'...")
-    model = whisper.load_model(model_name, device=DEVICE)
-    print(f"INFO: Whisper model '{model_name}' loaded.")
-    loaded_models[model_name] = model
-    return model
+    load_lock = _get_model_load_lock(cache_key)
+    with load_lock:
+        with loaded_models_lock:
+            if cache_key in loaded_models:
+                model, cached_device = loaded_models[cache_key]
+                loaded_models.move_to_end(cache_key)
+                print(f"INFO: Using cached Whisper model '{model_name}' on {cached_device}.")
+                return model, cached_device
+
+        print(f"INFO: Loading Whisper model '{model_name}' on {target_device}...")
+        model = whisper.load_model(model_name, device=target_device)
+        print(f"INFO: Whisper model '{model_name}' loaded on {target_device}.")
+
+        with loaded_models_lock:
+            loaded_models[cache_key] = (model, target_device)
+            loaded_models.move_to_end(cache_key)
+            _enforce_model_cache_limit()
+        return model, target_device
 
 # Pre-load the base model on startup
 get_whisper_model("base")
@@ -160,6 +327,43 @@ def parse_summary_fields(summary_text: str) -> dict[str, str]:
         if key in fields:
             fields[key] = raw_value.strip()
     return fields
+
+
+def _normalize_text_for_match(value: str) -> str:
+    return re.sub(r'\s+', ' ', re.sub(r'[^a-z0-9]+', ' ', (value or '').lower())).strip()
+
+
+def _replace_summary_field(summary_text: str, field_name: str, new_value: str) -> str:
+    pattern = re.compile(rf'(\*\*{re.escape(field_name)}:\*\*\s*)(.*?)(?=\n\*\*|$)', re.S)
+    if pattern.search(summary_text):
+        return pattern.sub(rf'\1{new_value}', summary_text, count=1)
+    separator = '\n' if summary_text and not summary_text.endswith('\n') else ''
+    return f"{summary_text}{separator}**{field_name}:** {new_value}"
+
+
+def enforce_grounded_customer_name(summary_text: str, transcription_text: str, ocr_lines: list[str]) -> str:
+    """Ensure customer name is only kept when explicitly present in transcription/OCR."""
+    if not summary_text:
+        return summary_text
+
+    fields = parse_summary_fields(summary_text)
+    raw_name = (fields.get('Customer Name', '') or '').strip()
+    if not raw_name or raw_name.lower() in {'n/a', 'na', 'not available', 'unknown'}:
+        return summary_text
+
+    candidate_name = re.sub(r'\([^)]*\)', '', raw_name)
+    candidate_name = re.sub(r'\bfrom\s+(audio|ocr|text|screenshot)\b.*$', '', candidate_name, flags=re.I).strip(' -:;,')
+
+    if not candidate_name:
+        return _replace_summary_field(summary_text, 'Customer Name', 'N/A')
+
+    source_text = f"{transcription_text or ''} {' '.join(ocr_lines or [])}"
+    source_norm = _normalize_text_for_match(source_text)
+    name_norm = _normalize_text_for_match(candidate_name)
+
+    if not name_norm or name_norm not in source_norm:
+        return _replace_summary_field(summary_text, 'Customer Name', 'N/A')
+    return summary_text
 
 
 def load_monitor_config() -> dict[str, Any]:
@@ -775,21 +979,35 @@ def build_analysis_graph():
         audio_path = state.get("audio_path")
         if not audio_path:
             return {"transcription_text": ""}
-        whisper_model = get_whisper_model(state.get("model_name", "base"))
-        audio_transcription = whisper_model.transcribe(audio_path, fp16=(DEVICE == 'cuda'))
-        return {"transcription_text": audio_transcription.get("text", "")}
+        try:
+            whisper_model, model_device = get_whisper_model(state.get("model_name", "base"))
+            print(f"INFO: Transcribing '{os.path.basename(audio_path)}' on {model_device}.")
+            audio_transcription = whisper_model.transcribe(audio_path, fp16=(DEVICE == 'cuda'))
+            return {"transcription_text": audio_transcription.get("text", ""), "error": ""}
+        except Exception as e:
+            error_message = f"Transcription failed: {str(e)}"
+            print(f"ERROR: {error_message}")
+            return {"transcription_text": "", "error": error_message}
 
     def classify_issue_node(state: AgentState) -> dict[str, Any]:
         text_blob = f"{state.get('transcription_text', '')} {' '.join(state.get('ocr_result', []))}".lower()
+        new_connection_tokens = [
+            "new connection", "new broadband", "new internet", "new wifi", "new wi fi",
+            "fresh connection", "install", "installation", "new setup", "new line", "new service",
+            "new subscription", "apply for connection", "want a connection", "need a connection"
+        ]
         billing_tokens = [
-            "bill", "billing", "payment", "upi", "invoice", "due", "recharge", "deactivated", "account"
+            "bill", "billing", "payment", "upi", "invoice", "due", "recharge", "deactivated"
         ]
         connectivity_tokens = [
             "internet", "connection", "wifi", "router", "slow", "disconnect", "los", "wan"
         ]
         plan_tokens = ["plan", "upgrade", "downgrade", "speed", "offer"]
 
-        if any(token in text_blob for token in billing_tokens):
+        if any(token in text_blob for token in new_connection_tokens):
+            category = "New Connection Request"
+            specialist_path = "Sales and onboarding specialist"
+        elif any(token in text_blob for token in billing_tokens):
             category = "Billing Issue / Account Deactivated"
             specialist_path = "Billing specialist"
         elif any(token in text_blob for token in connectivity_tokens):
@@ -833,6 +1051,11 @@ If both are provided, use both as context.
 Follow these guidelines strictly:
 {SKILL_GUIDELINES}
 
+Important grounding rule:
+- Do not infer or invent customer names.
+- Only populate **Customer Name** if it is explicitly present in the provided transcription or extracted screenshot text.
+- If the name is not explicitly present, output **Customer Name:** N/A.
+
 ---
 Here is the interaction data to analyze:
 {analysis_request}
@@ -855,6 +1078,11 @@ Please provide the English summary now. Structure your response using the follow
         llm = ChatOllama(model=agent_model, temperature=0)
         llm_response = llm.invoke(build_prompt(state, specialist_focus))
         summary_text = getattr(llm_response, "content", "") or ""
+        summary_text = enforce_grounded_customer_name(
+            summary_text,
+            state.get("transcription_text", ""),
+            state.get("ocr_result", []),
+        )
         return {"summary_text": summary_text}
 
     def summarize_billing_node(state: AgentState) -> dict[str, Any]:
@@ -904,6 +1132,7 @@ Please provide the English summary now. Structure your response using the follow
             "Billing Issue / Account Deactivated": "activate_account",
             "Connectivity Issue": "schedule_technician",
             "Plan Change / Upgrade Request": "process_plan_change",
+            "New Connection Request": "create_service_ticket",
             "Other Issues": "create_service_ticket"
         }
         proposed_action = action_map.get(issue_category, "create_service_ticket")
@@ -1284,6 +1513,7 @@ def approve_history_action(item_id):
         "Billing Issue / Account Deactivated": "activate_account",
         "Connectivity Issue": "schedule_technician",
         "Plan Change / Upgrade Request": "process_plan_change",
+        "New Connection Request": "create_service_ticket",
         "Other Issues": "create_service_ticket"
     }
     proposed_action = target_item.get('proposed_action') or action_map.get(
@@ -1525,15 +1755,32 @@ def clear_gpu_cache():
 def system_info():
     """Provides information about the system's CPU and GPU."""
     gpu_info = {}
+    gpu_devices = []
     if DEVICE == 'cuda' and torch.cuda.is_available():
         torch.cuda.synchronize()
-        free, total = torch.cuda.mem_get_info()
-        used = total - free
+        total_free = 0
+        total_capacity = 0
+        for gpu_index in range(torch.cuda.device_count()):
+            free, total = torch.cuda.mem_get_info(gpu_index)
+            used = total - free
+            total_free += free
+            total_capacity += total
+            gpu_devices.append({
+                'index': gpu_index,
+                'name': torch.cuda.get_device_name(gpu_index),
+                'total_memory': total,
+                'free_memory': free,
+                'percent': round((used / total) * 100, 1) if total > 0 else 0,
+            })
+
+        aggregate_used = total_capacity - total_free
+        primary_gpu_name = gpu_devices[0]['name'] if gpu_devices else ''
         gpu_info = {
-            'name': torch.cuda.get_device_name(0),
-            'total_memory': total,
-            'free_memory': free,
-            'percent': round((used / total) * 100, 1) if total > 0 else 0,
+            'name': primary_gpu_name,
+            'gpu_count': torch.cuda.device_count(),
+            'total_memory': total_capacity,
+            'free_memory': total_free,
+            'percent': round((aggregate_used / total_capacity) * 100, 1) if total_capacity > 0 else 0,
         }
 
     v_mem = psutil.virtual_memory()
@@ -1542,6 +1789,12 @@ def system_info():
     return jsonify({
         'device': DEVICE,
         'gpu': gpu_info,
+        'gpu_devices': gpu_devices,
+        'gpu_scheduler': {
+            'policy': WHISPER_DEVICE_POLICY,
+            'allowed_cuda_devices': WHISPER_ALLOWED_GPU_INDICES or 'all',
+            'max_cached_models': WHISPER_MAX_CACHED_MODELS,
+        },
         'cpu': {
             'percent': psutil.cpu_percent(interval=0.1),
         },
@@ -1620,7 +1873,11 @@ def process_files():
                 if "ocr" in update and screenshot_path:
                     yield f"data: {json.dumps({'step': 'ocr', 'status': 'complete', 'result': update['ocr'].get('ocr_result', [])})}\n\n"
                 if "transcribe" in update and audio_path:
-                    yield f"data: {json.dumps({'step': 'transcribe', 'status': 'complete', 'result': update['transcribe'].get('transcription_text', '')})}\n\n"
+                    transcribe_error = update['transcribe'].get('error', '')
+                    if transcribe_error:
+                        yield f"data: {json.dumps({'step': 'transcribe', 'status': 'error', 'message': transcribe_error, 'result': ''})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'step': 'transcribe', 'status': 'complete', 'result': update['transcribe'].get('transcription_text', '')})}\n\n"
                 if "classify_issue" in update:
                     yield f"data: {json.dumps({'step': 'classify', 'status': 'complete', 'result': update['classify_issue'].get('issue_category', 'Other Issues'), 'specialist': update['classify_issue'].get('specialist_path', 'General support specialist')})}\n\n"
                 if "summarize_billing" in update:
@@ -1647,6 +1904,9 @@ def process_files():
                     yield f"data: {json.dumps({'step': 'action', 'status': 'complete', 'result': update['execute_action'].get('action_status', ''), 'message': update['execute_action'].get('action_result', '')})}\n\n"
 
             yield f"data: {json.dumps({'step': 'done'})}\n\n"
+        except GeneratorExit:
+            print("INFO: SSE client disconnected during /api/process stream.")
+            return
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
         finally:
@@ -1658,9 +1918,9 @@ def process_files():
             
             # 6. Clear GPU cache and unload models after analysis
             if DEVICE == 'cuda':
-                yield f"data: {json.dumps({'step': 'cleanup', 'status': 'in_progress', 'message': 'GPU cache cleared and all models unloaded.'})}\n\n"
                 loaded_models.clear()
                 torch.cuda.empty_cache()
+                print("INFO: GPU cache cleared and all models unloaded.")
 
     return Response(generate_progress(), mimetype='text/event-stream')
 

@@ -33,7 +33,7 @@ When analyzing a customer call audio file, follow these steps:
 
 #### a. Connectivity Issue
 
-- **Keywords:** "internet not working", "no connection", "slow speed", "disconnecting", "wifi problem", "router issue".
+- **Keywords:** "internet not working", "no connection", "slow speed", "disconnecting", "wifi problem", "router issue", "static ip".
 - **Troubleshooting Steps:**
     1.  Ask the customer to check the router lights (see "Router Light Analysis" below).
     2.  Guide them to restart the router (power off for 30 seconds, then power on).

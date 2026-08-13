@@ -4,9 +4,12 @@ import uuid
 import hashlib
 import re
 import sqlite3
+import sys
 import threading
 import time
 from collections import OrderedDict
+import contextlib
+import io
 import tkinter as tk
 from tkinter import filedialog
 from datetime import datetime
@@ -266,6 +269,71 @@ print("INFO: Loading EasyOCR reader...")
 ocr_reader = easyocr.Reader(['en'], gpu=(DEVICE == 'cuda'))
 
 print("INFO: Flask app and models loaded successfully.")
+
+@contextlib.contextmanager
+def suppress_library_output():
+    """Hide noisy progress bars from third-party libraries while we stream the same state to the UI."""
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    sink = io.StringIO()
+    try:
+        sys.stdout = sink
+        sys.stderr = sink
+        yield
+    finally:
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+
+
+def _get_whisper_cache_candidates(model_name: str) -> list[str]:
+    """Return the real Whisper cache filenames and compatibility aliases the app may encounter."""
+    base_name = (model_name or '').strip()
+    if not base_name:
+        return []
+
+    candidates: list[str] = []
+    seen: set[str] = set()
+    for candidate in [
+        base_name,
+        f"{base_name}.pt",
+        f"{base_name}.en",
+        f"{base_name}.en.pt",
+        *({
+            'large-v3', 'large-v2', 'large-v1',
+            'large-v3.pt', 'large-v2.pt', 'large-v1.pt',
+            'large', 'large.pt',
+            'medium.en', 'medium.en.pt', 'medium', 'medium.pt',
+            'small.en', 'small.en.pt', 'small', 'small.pt',
+            'base.en', 'base.en.pt', 'base', 'base.pt',
+            'tiny.en', 'tiny.en.pt', 'tiny', 'tiny.pt',
+        } if base_name.lower() in {'large', 'medium', 'small', 'base', 'tiny'} else [])
+    ]:
+        key = candidate.lower()
+        if key not in seen:
+            seen.add(key)
+            candidates.append(candidate)
+
+    return candidates
+
+
+def whisper_model_is_downloaded(model_name: str) -> bool:
+    """Check whether the Whisper model is already cached under its real filename or an alias."""
+    whisper_cache_path = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+    for candidate in _get_whisper_cache_candidates(model_name):
+        for possible_path in [
+            os.path.join(whisper_cache_path, candidate),
+            os.path.join(whisper_cache_path, f"{candidate}.pt") if not candidate.endswith('.pt') else os.path.join(whisper_cache_path, candidate),
+        ]:
+            if os.path.exists(possible_path):
+                return True
+
+    if hasattr(whisper, 'is_model_available'):
+        try:
+            return bool(whisper.is_model_available(model_name))
+        except Exception:
+            return False
+    return False
+
 
 def load_model_names():
     """Loads the available model names and descriptions from JSON file."""
@@ -1654,8 +1722,7 @@ def models_status():
         whisper_cache_path = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
         os.makedirs(whisper_cache_path, exist_ok=True)
         for model_name in whisper_models_to_check:
-            model_file = os.path.join(whisper_cache_path, f"{model_name}.pt")
-            whisper_status[model_name] = {"status": "downloaded" if os.path.exists(model_file) else "not_downloaded"}
+            whisper_status[model_name] = {"status": "downloaded" if whisper_model_is_downloaded(model_name) else "not_downloaded"}
     except Exception as e:
         print(f"Warning: Could not check Whisper model status. Error: {e}")
         for model_name in whisper_models_to_check:
@@ -1682,13 +1749,18 @@ def delete_agent_model(model_name):
 
 @app.route('/api/models/whisper/<model_name>', methods=['DELETE'])
 def delete_whisper_model(model_name):
-    """Deletes a locally cached Whisper model file."""
+    """Deletes the locally cached Whisper model files, including alias variants like large-v3."""
     try:
         whisper_cache_path = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
-        model_file = os.path.join(whisper_cache_path, f"{model_name}.pt")
-        if os.path.exists(model_file):
-            print(f"INFO: Deleting Whisper model '{model_name}' from '{model_file}'...")
-            os.remove(model_file)
+        deleted_files = []
+        for candidate in _get_whisper_cache_candidates(model_name):
+            file_path = os.path.join(whisper_cache_path, candidate)
+            if os.path.exists(file_path):
+                print(f"INFO: Deleting Whisper model '{model_name}' from '{file_path}'...")
+                os.remove(file_path)
+                deleted_files.append(file_path)
+
+        if deleted_files:
             print(f"INFO: Model '{model_name}' deleted successfully.")
             return jsonify({"message": f"Whisper model '{model_name}' deleted."}), 200
         return jsonify({"error": "Model file not found."}), 404
@@ -1714,17 +1786,17 @@ def cache_models():
             for agent_model in agent_models:
                 yield f"data: {json.dumps({'status': 'in_progress', 'message': f'Pulling agent model: {agent_model}...', 'progress': 0})}\n\n"
                 try:
-                    for progress in ollama.pull(agent_model, stream=True):
-                        percentage = 0
-                        # Ensure 'total' and 'completed' exist and are not None before calculating percentage
-                        total = progress.get("total")
-                        completed = progress.get("completed")
-                        if total is not None and completed is not None and total > 0:
-                            percentage = round((completed / total) * 100)
-                        status_message = progress.get('status', f'Pulling {agent_model}...')
-                        if 'completed' in progress and 'total' in progress:
-                            status_message = f"Downloading: {round(progress['completed']/1e9, 2)}GB / {round(progress['total']/1e9, 2)}GB"
-                        yield f"data: {json.dumps({'status': 'in_progress', 'message': status_message, 'progress': percentage})}\n\n"
+                    with suppress_library_output():
+                        for progress in ollama.pull(agent_model, stream=True):
+                            percentage = 0
+                            total = progress.get("total")
+                            completed = progress.get("completed")
+                            if total is not None and completed is not None and total > 0:
+                                percentage = round((completed / total) * 100)
+                            status_message = progress.get('status', f'Pulling {agent_model}...')
+                            if 'completed' in progress and 'total' in progress:
+                                status_message = f"Downloading: {round(progress['completed']/1e9, 2)}GB / {round(progress['total']/1e9, 2)}GB"
+                            yield f"data: {json.dumps({'status': 'in_progress', 'message': status_message, 'progress': percentage})}\n\n"
                     completed_models += 1
                 except Exception as e:
                     yield f"data: {json.dumps({'status': 'error', 'message': f'Failed to pull {agent_model}: {str(e)}'})}\n\n"
@@ -1732,7 +1804,8 @@ def cache_models():
             # 2. Load Whisper models (which also downloads if not present)
             for whisper_model_name in whisper_models:
                 yield f"data: {json.dumps({'status': 'in_progress', 'message': f'Caching Whisper model: {whisper_model_name}...', 'progress': 100})}\n\n"
-                get_whisper_model(whisper_model_name)
+                with suppress_library_output():
+                    get_whisper_model(whisper_model_name)
                 completed_models += 1
 
             yield f"data: {json.dumps({'status': 'complete', 'message': f'Successfully cached {completed_models}/{total_models} selected models.'})}\n\n"

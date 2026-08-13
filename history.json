@@ -152,5 +152,29 @@
         "ocr": [],
         "approval_state": "rejected",
         "rejected_at": "2026-08-12T12:45:07.715345"
+    },
+    {
+        "id": "job-1786614660",
+        "timestamp": "2026-08-13T15:21:00.277236",
+        "audio_file": "new_connection.mpeg",
+        "screenshot_file": "N/A",
+        "issue_category": "Other Issues",
+        "specialist_path": "General support specialist",
+        "needs_human_review": false,
+        "review_reason": "",
+        "proposed_action": "create_service_ticket",
+        "action_payload": {
+            "issue_category": "Other Issues",
+            "specialist_path": "General support specialist",
+            "review_flag": false,
+            "review_reason": "",
+            "audio_file": "new_connection.mpeg",
+            "screenshot_file": "N/A"
+        },
+        "action_status": "awaiting_approval",
+        "action_result": "Execution skipped. Approval not provided from UI/API request.",
+        "summary": "**Customer Name:** N/A\n**Issue Category:** Other Issues\n**Key Information:** Customer is expressing a desire to adapt and seems content with their stay. They mention being greeted by guests, indicating they are currently at the hotel or service center in question. The customer also mentions an erg truck hippo (a seemingly unrelated comment), which does not provide actionable information for support purposes.\n**Payment Date & Time:** N/A\n**Payment Amount:** N/A\n**Payer Details:** N/A\n**Payee Details:** Interjet, as inferred from the context of being a high-speed internet provider and customer service interaction (N/A)\n**UPI Transaction ID:** N/A\n**Recommended Next Step:** Create a general service ticket for further investigation into the unspecified issue. Since no specific problem is identified, it would be appropriate to ask clarifying questions about what prompted this call and how Interjet can assist them better (e.g., \"Can you please tell me more about your experience with our services so far?\").",
+        "transcription": " Cell reflection \u00d4\u0ba9\u0bcd\u0baa\u043e\u043d\u043e\u043c\u0b9f\u0bcd \u0b85\u0ba9\u0bc0\u0baf\u0bae\u0bcd \u0b8e\u0ba9\u0bcd\u0ba9\u0ba4\u0bc1 \u0ba8\u0bbe\u0ba9\u0bcd \u0baa\u0bc7\u0ba3\u0bc1\u0bae Allez adapting diferen \u0b9a\u0bb0\u0bbf \u0b9a\u0bb0\u0bbf \u0b89\u0b99\u0bcd\u0b95\u0bb3\u0bc1\u0b95\u0bcd\u0b95\u0bc1 \u0b87\u0b9f\u0bae\u0bcd \u0b8e\u0b99\u0bcd\u0b95\u0bc1 \u0ba8\u0bbe\u0bb2\u0bcd \u0ba8\u0bbf\u0bb1\u0bc1\u0ba4\u0bcd\u0ba4 Aix\u00f2 guests \u0b9a\u0bc7\u0bb0\u0bcd\u0ba8\u0bcd\u0ba4\u0bc1 \u0b95\u0bbe\u0bae\u0bcd\u0bb1\u0bc1\u0b95\u0bbf\u0bb1\u0bc7\u0ba9\u0bcd \u0b9a\u0bc7\u0bb0\u0bcd\u0ba8\u0bcd\u0ba4\u0bc1 mor Erg truck hippo \u0b87\u0ba8\u0bcd\u0ba4 \u0bb5\u0b9f\u0bbf\u0b95\u0bb3\u0bc8reek Lets",
+        "ocr": []
     }
 ]

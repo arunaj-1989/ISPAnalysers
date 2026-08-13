@@ -2437,16 +2437,21 @@
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
+                let buffer = '';
 
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
 
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n\n').filter(line => line.startsWith('data:'));
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop() || '';
 
-                    for (const line of lines) {
-                        const jsonString = line.substring(5);
+                    for (const part of parts) {
+                        const line = part.trim();
+                        if (!line.startsWith('data:')) continue;
+
+                        const jsonString = line.substring(5).trim();
                         if (!jsonString) continue;
                         const data = JSON.parse(jsonString);
 
@@ -2456,6 +2461,21 @@
                         if (data.status === 'complete') {
                             showToast('Success', data.message, 'success');
                             loadModelStatuses(); // Refresh the entire list
+                        } else if (data.status === 'error') {
+                            throw new Error(data.message);
+                        }
+                    }
+                }
+
+                if (buffer.trim().startsWith('data:')) {
+                    const jsonString = buffer.trim().substring(5).trim();
+                    if (jsonString) {
+                        const data = JSON.parse(jsonString);
+                        statusText.textContent = data.message;
+                        progressBar.style.width = `${data.progress || 0}%`;
+                        if (data.status === 'complete') {
+                            showToast('Success', data.message, 'success');
+                            loadModelStatuses();
                         } else if (data.status === 'error') {
                             throw new Error(data.message);
                         }

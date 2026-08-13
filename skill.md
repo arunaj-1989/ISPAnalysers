@@ -13,6 +13,26 @@
 
 ## 3. Standard Operating Procedures (SOPs)
 
+### 3.0. Customer Language Glossary
+
+Customers often use informal words and local shorthand instead of formal ISP terminology. These terms should be interpreted in context and mapped to the correct service concept.
+
+- **Pack** = subscription plan / internet package / service plan.
+- **Recharge** = payment or top-up for the service connection.
+- **Renewal** = extending the validity of the internet service or plan.
+- **Connection** = internet service or broadband line.
+- **Router / WiFi / Net** = home internet service or local network access.
+- **Plan change** = upgrading, downgrading, or switching the current package.
+- **Inactive / off / disconnected** = service suspended, not working, or the account not active.
+- **Data pack** = internet package or data bundle.
+- **SIM card / line** = the service connection or customer account line, if used in telecom context.
+- **Top-up** = a small recharge to restore or extend service.
+
+When a customer uses a local or informal term:
+1. Map the term to the closest formal ISP concept.
+2. Use the broader context of the sentence to confirm the exact meaning.
+3. If the meaning is unclear, classify the issue conservatively and mention the customer phrase in the summary.
+
 ### 3.1. Call Analysis Workflow
 
 When analyzing a customer call audio file, follow these steps:
@@ -60,7 +80,19 @@ When analyzing a customer call audio file, follow these steps:
     3.  Process the plan change request in the system.
 - **Summary Example:** "Customer wants to upgrade from the 'Basic 50Mbps' plan to the 'Pro 100Mbps' plan. They have been informed of the new monthly cost. Recommended next step: Process the plan upgrade."
 
-#### d. Other Issues
+#### d. Connection Renewal / Renewal Request
+
+- **Keywords:** "renew connection", "renewal", "internet renewal", "subscription renewal", "service expiry", "expired connection", "pay for renewal", "renew my internet".
+- **Procedure:**
+    1.  Verify whether the connection is expired, near expiry, or temporarily suspended.
+    2.  Check the account status and current plan validity period in the billing or customer system.
+    3.  Confirm the customer’s intent to renew the same plan or switch to a preferred renewal pack.
+    4.  If payment is already made, validate the transaction details and confirm the renewal has been posted.
+    5.  If the renewal is pending, capture the payment proof and initiate the renewal process immediately.
+    6.  After renewal, confirm the connection is active and advise the customer of the new expiry date.
+- **Summary Example:** "Customer requested connection renewal for an expired internet service. Account status was checked, payment proof was validated, and the renewal was processed successfully. Recommended next step: Confirm service activation and share the updated expiry date."
+
+#### e. Other Issues
 
 - **Procedure:** If the issue does not fall into the above categories, create a general service ticket with a detailed description of the customer's problem.
 - **Summary Example:** "Customer is reporting an issue not covered by standard categories. [Provide a detailed summary of the problem]. Recommended next step: Create a general service ticket for further investigation."

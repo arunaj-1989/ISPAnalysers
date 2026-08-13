@@ -1,6 +1,6 @@
 {
     "default_agent_model": "mistral",
-    "default_whisper": "large",
+    "default_whisper": "large-v3-turbo",
     "customer_data_root": "C:/Users/aruna/Downloads/interjet",
     "customer_excel_path": "C:/Users/aruna/Downloads/interjet/New Microsoft Excel Worksheet.xlsx",
     "monitor_interval_seconds": 5,
@@ -40,8 +40,16 @@
             "name": "Medium (~5GB VRAM)"
         },
         {
-            "id": "large",
-            "name": "Large (~10GB VRAM)"
+            "id": "large-v2",
+            "name": "Large v2"
+        },
+        {
+            "id": "large-v3",
+            "name": "Large v3"
+        },
+        {
+            "id": "large-v3-turbo",
+            "name": "Large v3 Turbo"
         }
     ]
 }

@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import threading
 import time
+import gc
 from collections import OrderedDict
 import contextlib
 import io
@@ -58,44 +59,6 @@ def _first_non_empty(*values: str | None) -> str:
             return value.strip()
     return ''
 
-
-def configure_langsmith() -> bool:
-    """Enable LangSmith tracing only when an API key is configured."""
-    api_key = _first_non_empty(
-        os.getenv('LANGSMITH_API_KEY'),
-        os.getenv('LANGCHAIN_API_KEY'),
-        os.getenv('langsmith_api_key'),
-    )
-    if not api_key:
-        print('INFO: LangSmith disabled (no API key configured).')
-        return False
-
-    os.environ['LANGSMITH_API_KEY'] = api_key
-    os.environ['LANGCHAIN_API_KEY'] = api_key
-    os.environ.setdefault('LANGCHAIN_TRACING_V2', 'true')
-    os.environ.setdefault('LANGSMITH_TRACING', 'true')
-
-    project_name = _first_non_empty(
-        os.getenv('LANGSMITH_PROJECT'),
-        os.getenv('LANGCHAIN_PROJECT'),
-        os.getenv('langsmith_project'),
-    )
-    if project_name:
-        os.environ['LANGSMITH_PROJECT'] = project_name
-        os.environ['LANGCHAIN_PROJECT'] = project_name
-
-    endpoint = _first_non_empty(
-        os.getenv('LANGSMITH_ENDPOINT'),
-        os.getenv('langsmith_endpoint'),
-    )
-    if endpoint:
-        os.environ['LANGSMITH_ENDPOINT'] = endpoint
-
-    print('INFO: LangSmith tracing enabled.')
-    return True
-
-
-LANGSMITH_ENABLED = configure_langsmith()
 
 app = Flask(
     __name__,
@@ -333,6 +296,30 @@ def whisper_model_is_downloaded(model_name: str) -> bool:
         except Exception:
             return False
     return False
+
+
+def clear_vram_before_summary() -> None:
+    """Free CUDA memory before loading the LLM summary model after Whisper transcription."""
+    if DEVICE != 'cuda' or not torch.cuda.is_available():
+        return
+
+    try:
+        loaded_models.clear()
+    except Exception:
+        pass
+
+    try:
+        gc.collect()
+    except Exception:
+        pass
+
+    try:
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+    except Exception:
+        pass
+
+    print("INFO: CUDA VRAM cache cleared before summary model load.")
 
 
 def load_model_names():
@@ -1143,6 +1130,7 @@ Please provide the English summary now. Structure your response using the follow
 
     def run_summary(state: AgentState, specialist_focus: str) -> dict[str, Any]:
         agent_model = state.get("agent_model", "llama3")
+        clear_vram_before_summary()
         llm = ChatOllama(model=agent_model, temperature=0)
         llm_response = llm.invoke(build_prompt(state, specialist_focus))
         summary_text = getattr(llm_response, "content", "") or ""

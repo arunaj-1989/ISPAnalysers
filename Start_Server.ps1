@@ -25,8 +25,13 @@ $ScriptDir = $PSScriptRoot
 
 # --- Configuration ---
 $PythonVersionMajor = 3
-$PythonVersionMinor = 11
-$VenvDir = Join-Path $ScriptDir ".venv"
+$PythonVersionMinor = 10
+# Prefer the active virtual environment when one is already selected, otherwise use the project default.
+if ($env:VIRTUAL_ENV) {
+    $VenvDir = $env:VIRTUAL_ENV
+} else {
+    $VenvDir = Join-Path $ScriptDir ".venv"
+}
 $RequirementsFile = Join-Path $ScriptDir "requirements.txt"
 $FlaskScript = Join-Path $ScriptDir "app.py"
 $OllamaModel = "phi3:mini" # Match the default agent model
@@ -42,7 +47,15 @@ function Write-Log {
 Write-Log "Step 1: Checking for Python ${PythonVersionMajor}.${PythonVersionMinor}+..."
 $pythonExe = Get-Command -Name "python" -ErrorAction SilentlyContinue
 if (-not $pythonExe) {
-    Write-Log "Python not found in PATH. Please install Python ${PythonVersionMajor}.${PythonVersionMinor} or higher and ensure it's in your PATH." -Color Red
+    if ((Test-Path (Join-Path $VenvDir "Scripts\python.exe")) -or (Test-Path (Join-Path $VenvDir "bin/python"))) {
+        $pythonExe = @{ Source = (Join-Path $VenvDir "Scripts\python.exe") }
+        if (-not (Test-Path $pythonExe.Source)) {
+            $pythonExe.Source = (Join-Path $VenvDir "bin/python")
+        }
+    }
+}
+if (-not $pythonExe) {
+    Write-Log "Python not found in PATH and no suitable virtual environment Python was detected. Please install Python ${PythonVersionMajor}.${PythonVersionMinor} or higher and ensure it's in your PATH." -Color Red
     exit 1
 }
 
@@ -198,6 +211,17 @@ try {
 } catch {
     Write-Log "Failed to import one or more AI agent dependencies (langchain/langgraph/langchain-ollama)." -Color Red
     Write-Log "Try re-running dependency installation or manually running: pip install -r requirements.txt" -Color Red
+    exit 1
+}
+
+# --- 3d. Validate the app imports cleanly before launch ---
+Write-Log "Step 3d: Validating the app imports without the debug reloader crash..."
+try {
+    & $PythonVenvExe -c "import app; print('app import ok')" | Out-Null
+    Write-Log "Application import check passed." -Color Green
+} catch {
+    Write-Log "Application import failed. Fix the dependency issue before starting the app." -Color Red
+    Write-Log $_.Exception.Message -Color Red
     exit 1
 }
 

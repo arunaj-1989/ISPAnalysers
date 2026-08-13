@@ -1,0 +1,32 @@
+# Ubuntu diarization deployment environment
+# Use in a separate virtual environment. Do not install into the main app environment.
+# Python 3.10 recommended.
+
+# Core app dependencies
+Flask
+Flask-Cors
+psutil
+numpy<2
+torch==2.1.2+cu121
+# Install torch from the CUDA wheel index for the exact environment:
+# pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121 torchaudio==2.1.2+cu121 -f https://download.pytorch.org/whl/cu121
+openai-whisper
+easyocr
+transformers
+accelerate
+ollama
+Pillow
+langchain
+langgraph
+langchain-ollama
+openpyxl
+
+# Diarization stack
+pyannote.audio==3.1.1
+git+https://github.com/m-bain/whisperx.git
+
+# Install k2 from the official matching wheel for your CUDA build.
+# See: https://k2-fsa.github.io/k2/cuda.html
+# Example:
+# pip install "k2==1.24.3.dev20230718+cuda11.8.torch2.1.2" -f https://k2-fsa.github.io/k2/cuda.html
+# Use the exact wheel that matches your torch + CUDA build.

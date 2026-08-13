@@ -160,6 +160,15 @@ else
     exit 1
 fi
 
+# --- 3d. Validate the app imports cleanly before launch ---
+log "Step 3d: Validating the app imports without the debug reloader crash..."
+if python -c "import app" >/dev/null 2>&1; then
+    log_color "Application import check passed." "32" # Green
+else
+    log_color "Application import failed. Fix the dependency issue before starting the app." "31" # Red
+    exit 1
+fi
+
 # --- 4. Run the Application ---
 log "Step 4: Launching the Flask application..."
 

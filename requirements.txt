@@ -13,3 +13,7 @@ langchain
 langgraph
 langchain-ollama
 openpyxl
+
+# Optional diarization packages (install separately only in a compatible environment):
+# whisperx
+# k2

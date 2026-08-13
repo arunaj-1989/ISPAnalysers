@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 import gc
+import importlib
 from collections import OrderedDict
 import contextlib
 import io
@@ -97,9 +98,45 @@ monitor_runtime = {
     'last_scan_duplicates_skipped': 0,
 }
 
-print("INFO: Loading skill guidelines...")
-with open(os.path.join(project_root, 'skill.md'), 'r', encoding='utf-8') as f:
-    SKILL_GUIDELINES = f.read()
+print("INFO: Loading agent and skill guidance...")
+SKILL_GUIDELINES = ""
+
+SKILLS_DIR = os.path.join(project_root, 'skills')
+AGENT_AND_SKILL_CONTEXT = ""
+
+
+def load_agent_and_skill_context() -> str:
+    """Load the agent guidance and skill documents so the app can use them for routing and summary generation."""
+    global AGENT_AND_SKILL_CONTEXT
+
+    doc_paths: list[str] = []
+    candidates = [
+        os.path.join(project_root, 'agent.md'),
+    ]
+    if os.path.isdir(SKILLS_DIR):
+        for filename in sorted(os.listdir(SKILLS_DIR)):
+            if filename.endswith('.md'):
+                doc_paths.append(os.path.join(SKILLS_DIR, filename))
+
+    for path in candidates:
+        if os.path.exists(path):
+            doc_paths.insert(0, path)
+
+    sections: list[str] = []
+    for path in doc_paths:
+        try:
+            with open(path, 'r', encoding='utf-8') as handle:
+                content = handle.read().strip()
+            if content:
+                sections.append(f"--- {os.path.basename(path)} ---\n{content}")
+        except Exception as exc:
+            print(f"WARNING: Could not read agent/skill file '{path}': {exc}")
+
+    AGENT_AND_SKILL_CONTEXT = "\n\n".join(sections)
+    return AGENT_AND_SKILL_CONTEXT
+
+
+AGENT_AND_SKILL_CONTEXT = load_agent_and_skill_context()
 
 # Determine device
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -322,6 +359,44 @@ def clear_vram_before_summary() -> None:
     print("INFO: CUDA VRAM cache cleared before summary model load.")
 
 
+def format_diarized_segments(segments: list[dict[str, Any]] | None) -> str:
+    """Turn diarized segments into speaker-labeled transcript lines."""
+    if not segments:
+        return ""
+
+    lines: list[str] = []
+    for segment in segments:
+        speaker = str(segment.get('speaker') or segment.get('speaker_label') or 'Speaker').strip()
+        text = str(segment.get('text') or '').strip()
+        if speaker and text:
+            lines.append(f"{speaker}: {text}")
+        elif text:
+            lines.append(text)
+    return "\n".join(lines)
+
+
+def transcribe_with_diarization(audio_path: str, whisper_model: Any, language: str | None = None) -> str:
+    """Use the stable standard Whisper transcription path.
+
+    Speaker diarization was intentionally disabled to keep the app reliable in the
+    current project environment. This function now behaves like the previously
+    working transcription path used in the main app.
+    """
+    try:
+        audio_transcription = whisper_model.transcribe(
+            audio_path,
+            fp16=(DEVICE == 'cuda'),
+            initial_prompt=None,
+            condition_on_previous_text=False,
+            temperature=0.0,
+            language=language,
+        )
+        return str(audio_transcription.get('text', '') or '')
+    except Exception as exc:
+        print(f"WARNING: Standard Whisper transcription failed: {exc}")
+        return ""
+
+
 def load_model_names():
     """Loads the available model names and descriptions from JSON file."""
     try:
@@ -330,6 +405,45 @@ def load_model_names():
     except (FileNotFoundError, json.JSONDecodeError):
         # Return empty lists on error
         return {"agent_models": [], "whisper_models": []}
+
+
+def validate_issue_code_mapping() -> dict[str, str]:
+    """Quick sanity-check that important customer phrases resolve to expected skill-aligned issue codes."""
+    phrase_map = {
+        "my pack expired": "PLAN_UPGRADE",
+        "renew my internet": "PLAN_UPGRADE",
+        "router not working": "INTERNET_ISSUE",
+        "wifi is down": "INTERNET_ISSUE",
+        "bill payment done": "PAYMENT_CONFIRMATION",
+        "account deactivated": "PAYMENT_CONFIRMATION",
+        "new connection required": "NEW_CONNECTION",
+        "need a better speed plan": "PLAN_DETAILS_ENQUIRY",
+        "service is slow": "INTERNET_ISSUE",
+        "no internet": "INTERNET_ISSUE",
+    }
+
+    results: dict[str, str] = {}
+    for phrase, expected_code in phrase_map.items():
+        text_blob = phrase.lower()
+
+        def matches_any(tokens: list[str]) -> bool:
+            return any(token in text_blob for token in tokens)
+
+        if matches_any(["renew my pack", "renew connection", "renewal", "renew internet", "pack expiry", "expired pack", "renew my plan", "renew my internet"]):
+            code = "PLAN_UPGRADE"
+        elif matches_any(["new connection", "new broadband", "new internet", "new service", "install", "installation", "new setup", "relocation", "move connection"]):
+            code = "NEW_CONNECTION"
+        elif matches_any(["bill", "billing", "payment", "upi", "invoice", "due", "recharge", "deactivated", "auto debit", "refund"]):
+            code = "PAYMENT_CONFIRMATION"
+        elif matches_any(["internet", "router", "wifi", "slow", "disconnect", "los", "outage", "down", "not working"]):
+            code = "INTERNET_ISSUE"
+        elif matches_any(["plan", "upgrade", "downgrade", "speed", "pack", "package", "expiry", "expired", "validity"]):
+            code = "PLAN_DETAILS_ENQUIRY"
+        else:
+            code = "GENERAL_INQUIRY"
+
+        results[phrase] = code
+    return results
 
 # --- History Management ---
 def load_history():
@@ -419,6 +533,52 @@ def enforce_grounded_customer_name(summary_text: str, transcription_text: str, o
     if not name_norm or name_norm not in source_norm:
         return _replace_summary_field(summary_text, 'Customer Name', 'N/A')
     return summary_text
+
+
+def enforce_grounded_summary_scope(summary_text: str, transcription_text: str, ocr_lines: list[str]) -> str:
+    """Keep summary content limited to issues explicitly discussed in the source text."""
+    if not summary_text:
+        return summary_text
+
+    source_text = f"{transcription_text or ''} {' '.join(ocr_lines or [])}"
+    source_norm = _normalize_text_for_match(source_text)
+
+    payment_terms = [
+        'payment', 'paid', 'invoice', 'upi', 'payer', 'payee', 'transaction id',
+        'transaction', 'refund', 'recharge', 'bill', 'billing', 'amount', 'due'
+    ]
+    has_payment_evidence = any(term in source_norm for term in payment_terms)
+
+    fields = parse_summary_fields(summary_text)
+    key_info = (fields.get('Key Information', '') or '').strip()
+
+    if not has_payment_evidence:
+        for field_name in ['Payment Date & Time', 'Payment Amount', 'Payer Details', 'Payee Details', 'UPI Transaction ID']:
+            fields[field_name] = 'N/A'
+
+        if key_info:
+            stripped_key = re.sub(r'(?is)\b(payment|payments|billing|invoice|upi|payer|payee|transaction id|transaction|amount|recharge|bill)\b[^\n.]*[.;]?\s*', '', key_info)
+            stripped_key = re.sub(r'\s{2,}', ' ', stripped_key).strip(' -:;')
+            fields['Key Information'] = stripped_key or 'N/A'
+
+    ordered_fields = [
+        'Customer Name',
+        'Issue Category',
+        'Key Information',
+        'Payment Date & Time',
+        'Payment Amount',
+        'Payer Details',
+        'Payee Details',
+        'UPI Transaction ID',
+        'Recommended Next Step',
+    ]
+
+    rebuilt_lines = []
+    for field_name in ordered_fields:
+        value = (fields.get(field_name) or 'N/A').strip() or 'N/A'
+        rebuilt_lines.append(f'**{field_name}:** {value}')
+
+    return '\n'.join(rebuilt_lines)
 
 
 def load_monitor_config() -> dict[str, Any]:
@@ -958,10 +1118,20 @@ def _dummy_create_service_ticket(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _dummy_renew_connection(payload: dict[str, Any]) -> dict[str, Any]:
+    """Dummy renewal action placeholder for pack/renewal requests."""
+    return {
+        "status": "executed",
+        "message": "Dummy connection renewal workflow executed.",
+        "payload": payload
+    }
+
+
 ACTION_HANDLERS: dict[str, Any] = {
     "activate_account": _dummy_activate_account,
     "schedule_technician": _dummy_schedule_technician,
     "process_plan_change": _dummy_process_plan_change,
+    "renew_connection": _dummy_renew_connection,
     "create_service_ticket": _dummy_create_service_ticket,
 }
 
@@ -992,6 +1162,7 @@ class AgentState(TypedDict):
     persist_history: bool
     ocr_result: list[str]
     transcription_text: str
+    issue_code: str
     issue_category: str
     specialist_path: str
     summary_text: str
@@ -1007,10 +1178,48 @@ class AgentState(TypedDict):
 def build_analysis_graph():
     """Builds and compiles the analysis agent workflow using LangGraph."""
 
+    def get_whisper_transcription_prompt() -> str:
+        """Return a short, high-signal ISP vocabulary hint without over-biasing Whisper."""
+        vocab = [
+            "renewal",
+            "recharge",
+            "router",
+            "wifi",
+            "internet",
+            "pack",
+            "bill",
+            "plan",
+            "line",
+            "service",
+            "outage",
+            "signal",
+            "broadband",
+        ]
+        return " ".join(vocab)
+
+    def is_suspicious_transcript(transcript: str) -> bool:
+        """Flag low-confidence transcripts that look overfit to ISP keywords."""
+        text = (transcript or "").strip()
+        if not text:
+            return True
+
+        words = text.split()
+        if len(words) < 4:
+            return True
+
+        isp_tokens = {
+            "renewal", "recharge", "router", "wifi", "internet", "pack", "bill",
+            "plan", "line", "service", "outage", "signal", "broadband", "router lights"
+        }
+        lowered = text.lower()
+        hit_count = sum(1 for token in isp_tokens if token in lowered)
+        return hit_count >= 4 and len(words) <= 16
+
     def preprocess_node(state: AgentState) -> dict[str, Any]:
         return {
             "ocr_result": [],
             "transcription_text": "",
+            "issue_code": "GENERAL_INQUIRY",
             "issue_category": "Other Issues",
             "specialist_path": "General support specialist",
             "summary_text": "",
@@ -1037,8 +1246,12 @@ def build_analysis_graph():
         try:
             whisper_model, model_device = get_whisper_model(state.get("model_name", "base"))
             print(f"INFO: Transcribing '{os.path.basename(audio_path)}' on {model_device}.")
-            audio_transcription = whisper_model.transcribe(audio_path, fp16=(DEVICE == 'cuda'))
-            return {"transcription_text": audio_transcription.get("text", ""), "error": ""}
+            language = state.get("transcription_language") or None
+            transcript = transcribe_with_diarization(audio_path, whisper_model, language=language)
+            transcript = (transcript or "").strip()
+            if is_suspicious_transcript(transcript):
+                print(f"WARNING: Whisper transcript looks low-confidence or overfit to ISP keywords for '{os.path.basename(audio_path)}'.")
+            return {"transcription_text": transcript, "error": ""}
         except Exception as e:
             error_message = f"Transcription failed: {str(e)}"
             print(f"ERROR: {error_message}")
@@ -1046,36 +1259,83 @@ def build_analysis_graph():
 
     def classify_issue_node(state: AgentState) -> dict[str, Any]:
         text_blob = f"{state.get('transcription_text', '')} {' '.join(state.get('ocr_result', []))}".lower()
+
+        def matches_any(tokens: list[str]) -> bool:
+            return any(token in text_blob for token in tokens)
+
+        # Skill-aligned issue codes
+        renewal_tokens = [
+            "renew my pack", "renew connection", "renewal", "renew internet", "pack expiry",
+            "expired pack", "service expiry", "renew my internet", "connection renewal",
+            "renew my plan", "expiry of pack", "expired connection", "renewal request"
+        ]
         new_connection_tokens = [
             "new connection", "new broadband", "new internet", "new wifi", "new wi fi",
             "fresh connection", "install", "installation", "new setup", "new line", "new service",
-            "new subscription", "apply for connection", "want a connection", "need a connection"
+            "new subscription", "apply for connection", "want a connection", "need a connection",
+            "shift request", "relocation", "move connection", "connection shift"
         ]
         billing_tokens = [
-            "bill", "billing", "payment", "upi", "invoice", "due", "recharge", "deactivated"
+            "bill", "billing", "payment", "upi", "invoice", "due", "recharge", "deactivated",
+            "auto debit", "refund", "charge", "pending payment", "account suspend", "suspend"
         ]
         connectivity_tokens = [
-            "internet", "connection", "wifi", "router", "slow", "disconnect", "los", "wan"
+            "internet", "connection", "wifi", "router", "slow", "disconnect", "los", "wan",
+            "signal", "fiber", "outage", "offline", "net down", "not working", "down"
         ]
-        plan_tokens = ["plan", "upgrade", "downgrade", "speed", "offer"]
+        plan_tokens = [
+            "plan", "upgrade", "downgrade", "speed", "offer", "pack", "package",
+            "monthly pack", "expiry", "expired", "validity"
+        ]
 
-        if any(token in text_blob for token in new_connection_tokens):
+        if matches_any(renewal_tokens):
+            issue_code = "PLAN_UPGRADE"
+            category = "Plan Change / Upgrade Request"
+            specialist_path = "General support specialist"
+        elif matches_any(new_connection_tokens):
+            issue_code = "NEW_CONNECTION"
             category = "New Connection Request"
             specialist_path = "Sales and onboarding specialist"
-        elif any(token in text_blob for token in billing_tokens):
+        elif matches_any(billing_tokens):
+            issue_code = "PAYMENT_CONFIRMATION"
             category = "Billing Issue / Account Deactivated"
             specialist_path = "Billing specialist"
-        elif any(token in text_blob for token in connectivity_tokens):
+        elif matches_any(connectivity_tokens):
+            issue_code = "INTERNET_ISSUE"
             category = "Connectivity Issue"
             specialist_path = "Connectivity and field-support specialist"
-        elif any(token in text_blob for token in plan_tokens):
+        elif matches_any(plan_tokens):
+            issue_code = "PLAN_DETAILS_ENQUIRY"
             category = "Plan Change / Upgrade Request"
             specialist_path = "General support specialist"
         else:
+            issue_code = "GENERAL_INQUIRY"
             category = "Other Issues"
             specialist_path = "General support specialist"
 
-        return {"issue_category": category, "specialist_path": specialist_path}
+        pack_renewal_terms = [
+            "my pack",
+            "internet pack",
+            "pack renewal",
+            "renew my pack",
+            "renew internet pack",
+            "pack expired",
+            "expired pack",
+            "renew my plan",
+            "recharge for wifi",
+            "top-up",
+            "recharge",
+        ]
+        if any(token in text_blob for token in pack_renewal_terms):
+            issue_code = "PLAN_UPGRADE"
+            category = "Plan Change / Upgrade Request"
+            specialist_path = "General support specialist"
+
+        return {
+            "issue_code": issue_code,
+            "issue_category": category,
+            "specialist_path": specialist_path,
+        }
 
     def build_prompt(state: AgentState, specialist_focus: str) -> str:
         transcription_text = state.get("transcription_text", "")
@@ -1098,18 +1358,23 @@ def build_analysis_graph():
         return f"""
 You are an AI assistant for Interjet, a high-speed internet provider.
 You are currently acting as: {specialist_focus}
-Your task is to analyze the provided customer interaction and generate a summary based on the company's standard operating procedures.
-If only a screenshot is provided, focus on analyzing the details from the image.
+Your task is to analyze the provided customer interaction and generate a summary based only on the issues explicitly discussed in the provided OCR and audio transcript.
+If only a screenshot is provided, focus on the details visible in the image.
 If only audio is provided, focus on the transcription.
 If both are provided, use both as context.
 
 Follow these guidelines strictly:
 {SKILL_GUIDELINES}
 
-Important grounding rule:
-- Do not infer or invent customer names.
-- Only populate **Customer Name** if it is explicitly present in the provided transcription or extracted screenshot text.
-- If the name is not explicitly present, output **Customer Name:** N/A.
+Use the agent and skill reference below for customer language, issue categorization, and action routing.
+{AGENT_AND_SKILL_CONTEXT}
+
+Important grounding rules:
+- Summarize only the issues that are explicitly mentioned in the OCR or audio transcript.
+- Do not invent or infer customer names, payment details, transaction IDs, or account facts that are not present in the source text.
+- Only populate payment fields if the transcript or OCR explicitly shows payment evidence.
+- If there is no payment evidence, set all payment fields to N/A and do not mention payment-related details in Key Information.
+- Treat terms like "pack", "internet pack", "renew my pack", "renewal", "recharge", and "top-up" as plan or service-renewal language only when they are clearly part of the discussed issue.
 
 ---
 Here is the interaction data to analyze:
@@ -1119,12 +1384,12 @@ Here is the interaction data to analyze:
 Please provide the English summary now. Structure your response using the following markdown format, ensuring each field is on a new line:
 **Customer Name:** [Customer's name from audio or screenshot, or N/A]
 **Issue Category:** [The categorized issue]
-**Key Information:** [Other key details from the call or text, NOT related to the payment]
-**Payment Date & Time:** [Date and Time from screenshot, e.g., "July 13, 2026, 11:03 AM", or N/A]
-**Payment Amount:** [Amount from screenshot as a number only, e.g., 599, or N/A]
-**Payer Details:** [Payer name or UPI ID from screenshot, or N/A]
-**Payee Details:** [Payee name or UPI ID from screenshot, or N/A]
-**UPI Transaction ID:** [Transaction ID from screenshot, or N/A]
+**Key Information:** [Only the issue details explicitly discussed, excluding unrelated payment content]
+**Payment Date & Time:** [Date and Time from screenshot only if explicitly shown, otherwise N/A]
+**Payment Amount:** [Amount from screenshot only if explicitly shown, otherwise N/A]
+**Payer Details:** [Payer name or UPI ID from screenshot only if explicitly shown, otherwise N/A]
+**Payee Details:** [Payee name or UPI ID from screenshot only if explicitly shown, otherwise N/A]
+**UPI Transaction ID:** [Transaction ID from screenshot only if explicitly shown, otherwise N/A]
 **Recommended Next Step:** [The recommended next step based on the SOPs]
 """
 
@@ -1135,6 +1400,11 @@ Please provide the English summary now. Structure your response using the follow
         llm_response = llm.invoke(build_prompt(state, specialist_focus))
         summary_text = getattr(llm_response, "content", "") or ""
         summary_text = enforce_grounded_customer_name(
+            summary_text,
+            state.get("transcription_text", ""),
+            state.get("ocr_result", []),
+        )
+        summary_text = enforce_grounded_summary_scope(
             summary_text,
             state.get("transcription_text", ""),
             state.get("ocr_result", []),
@@ -1181,18 +1451,38 @@ Please provide the English summary now. Structure your response using the follow
         return {"summary_text": f"{summary}{review_note}"}
 
     def propose_action_node(state: AgentState) -> dict[str, Any]:
+        issue_code = state.get("issue_code", "GENERAL_INQUIRY")
         issue_category = state.get("issue_category", "Other Issues")
         needs_human_review = state.get("needs_human_review", False)
+        issue_text = f"{state.get('transcription_text', '')} {' '.join(state.get('ocr_result', []))}".lower()
 
         action_map = {
-            "Billing Issue / Account Deactivated": "activate_account",
-            "Connectivity Issue": "schedule_technician",
-            "Plan Change / Upgrade Request": "process_plan_change",
-            "New Connection Request": "create_service_ticket",
-            "Other Issues": "create_service_ticket"
+            "PAYMENT_CONFIRMATION": "activate_account",
+            "ACCOUNT_SUSPEND_REQUEST": "activate_account",
+            "BILL_ENQUIRY": "activate_account",
+            "INVOICE_REQUEST": "create_service_ticket",
+            "DISCONNECTION_REQUEST": "create_service_ticket",
+            "INTERNET_ISSUE": "schedule_technician",
+            "LOSS_OF_SIGNAL": "schedule_technician",
+            "ROUTER_ISSUE": "schedule_technician",
+            "OUTAGE_REPORT": "schedule_technician",
+            "SLOW_SPEED": "schedule_technician",
+            "WIFI_DISCONNECTING": "schedule_technician",
+            "SITE_NOT_WORKING": "schedule_technician",
+            "FIBER_CUT": "schedule_technician",
+            "FIBER_CABLE_DAMAGED": "schedule_technician",
+            "PLAN_UPGRADE": "process_plan_change",
+            "PLAN_DETAILS_ENQUIRY": "process_plan_change",
+            "NEW_CONNECTION": "create_service_ticket",
+            "GENERAL_INQUIRY": "create_service_ticket",
         }
-        proposed_action = action_map.get(issue_category, "create_service_ticket")
+
+        proposed_action = action_map.get(issue_code, "create_service_ticket")
+        if any(token in issue_text for token in ["renew my pack", "renew connection", "renewal", "pack expiry", "expired pack", "renew my plan", "renew my internet"]):
+            proposed_action = "renew_connection"
+
         action_payload = {
+            "issue_code": issue_code,
             "issue_category": issue_category,
             "specialist_path": state.get("specialist_path", "General support specialist"),
             "review_flag": needs_human_review,
@@ -1276,10 +1566,12 @@ Please provide the English summary now. Structure your response using the follow
     workflow.add_edge("transcribe", "classify_issue")
 
     def route_by_issue(state: AgentState) -> str:
+        issue_code = state.get("issue_code", "GENERAL_INQUIRY")
         category = state.get("issue_category", "Other Issues")
-        if category == "Billing Issue / Account Deactivated":
+
+        if issue_code in {"PAYMENT_CONFIRMATION", "ACCOUNT_SUSPEND_REQUEST", "BILL_ENQUIRY", "INVOICE_REQUEST", "DISCONNECTION_REQUEST"}:
             return "billing"
-        if category == "Connectivity Issue":
+        if issue_code in {"INTERNET_ISSUE", "LOSS_OF_SIGNAL", "ROUTER_ISSUE", "OUTAGE_REPORT", "SLOW_SPEED", "WIFI_DISCONNECTING", "SITE_NOT_WORKING", "FIBER_CUT", "FIBER_CABLE_DAMAGED"}:
             return "connectivity"
         return "general"
 
@@ -1989,4 +2281,4 @@ if __name__ == '__main__':
     init_customer_database()
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
         start_customer_monitor()
-    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)

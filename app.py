@@ -9,6 +9,7 @@ import threading
 import time
 import gc
 import importlib
+import shutil
 from collections import OrderedDict
 import contextlib
 import io
@@ -20,7 +21,8 @@ from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
 import torch
 import easyocr
-import whisper
+from faster_whisper import WhisperModel
+from faster_whisper.utils import download_model
 import ollama
 import psutil
 from langgraph.graph import StateGraph, END
@@ -231,9 +233,9 @@ def pick_transcription_device() -> str:
         gpu_round_robin_index += 1
     return selected
 
-def get_whisper_model(model_name: str):
+def get_whisper_model(model_name: str, target_device: str | None = None):
     """Loads a Whisper model into memory, caching it for future use."""
-    target_device = pick_transcription_device() if DEVICE == 'cuda' else DEVICE
+    target_device = target_device or (pick_transcription_device() if DEVICE == 'cuda' else DEVICE)
     cache_key = f"{model_name}@{target_device}"
 
     with loaded_models_lock:
@@ -253,7 +255,13 @@ def get_whisper_model(model_name: str):
                 return model, cached_device
 
         print(f"INFO: Loading Whisper model '{model_name}' on {target_device}...")
-        model = whisper.load_model(model_name, device=target_device)
+        device_index = int(target_device.split(':')[1]) if ':' in target_device else 0
+        model = WhisperModel(
+            model_name,
+            device='cuda' if target_device.startswith('cuda') else 'cpu',
+            device_index=device_index,
+            compute_type='float16' if target_device.startswith('cuda') else 'int8',
+        )
         print(f"INFO: Whisper model '{model_name}' loaded on {target_device}.")
 
         with loaded_models_lock:
@@ -285,54 +293,12 @@ def suppress_library_output():
         sys.stderr = original_stderr
 
 
-def _get_whisper_cache_candidates(model_name: str) -> list[str]:
-    """Return the real Whisper cache filenames and compatibility aliases the app may encounter."""
-    base_name = (model_name or '').strip()
-    if not base_name:
-        return []
-
-    candidates: list[str] = []
-    seen: set[str] = set()
-    for candidate in [
-        base_name,
-        f"{base_name}.pt",
-        f"{base_name}.en",
-        f"{base_name}.en.pt",
-        *({
-            'large-v3', 'large-v2', 'large-v1',
-            'large-v3.pt', 'large-v2.pt', 'large-v1.pt',
-            'large', 'large.pt',
-            'medium.en', 'medium.en.pt', 'medium', 'medium.pt',
-            'small.en', 'small.en.pt', 'small', 'small.pt',
-            'base.en', 'base.en.pt', 'base', 'base.pt',
-            'tiny.en', 'tiny.en.pt', 'tiny', 'tiny.pt',
-        } if base_name.lower() in {'large', 'medium', 'small', 'base', 'tiny'} else [])
-    ]:
-        key = candidate.lower()
-        if key not in seen:
-            seen.add(key)
-            candidates.append(candidate)
-
-    return candidates
-
-
 def whisper_model_is_downloaded(model_name: str) -> bool:
-    """Check whether the Whisper model is already cached under its real filename or an alias."""
-    whisper_cache_path = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
-    for candidate in _get_whisper_cache_candidates(model_name):
-        for possible_path in [
-            os.path.join(whisper_cache_path, candidate),
-            os.path.join(whisper_cache_path, f"{candidate}.pt") if not candidate.endswith('.pt') else os.path.join(whisper_cache_path, candidate),
-        ]:
-            if os.path.exists(possible_path):
-                return True
-
-    if hasattr(whisper, 'is_model_available'):
-        try:
-            return bool(whisper.is_model_available(model_name))
-        except Exception:
-            return False
-    return False
+    """Check whether Faster-Whisper has the model in the Hugging Face cache."""
+    try:
+        return os.path.isdir(download_model(model_name, local_files_only=True))
+    except Exception:
+        return False
 
 
 def clear_vram_before_summary() -> None:
@@ -382,19 +348,20 @@ def transcribe_with_diarization(audio_path: str, whisper_model: Any, language: s
     current project environment. This function now behaves like the previously
     working transcription path used in the main app.
     """
-    try:
-        audio_transcription = whisper_model.transcribe(
-            audio_path,
-            fp16=(DEVICE == 'cuda'),
-            initial_prompt=None,
-            condition_on_previous_text=False,
-            temperature=0.0,
-            language=language,
-        )
-        return str(audio_transcription.get('text', '') or '')
-    except Exception as exc:
-        print(f"WARNING: Standard Whisper transcription failed: {exc}")
-        return ""
+    segments, _ = whisper_model.transcribe(
+        audio_path,
+        initial_prompt=None,
+        condition_on_previous_text=False,
+        temperature=0.0,
+        language=language,
+    )
+    return ' '.join(segment.text.strip() for segment in segments if segment.text.strip())
+
+
+def is_cuda_runtime_error(error: Exception) -> bool:
+    """Identify missing CUDA runtime libraries reported by CTranslate2."""
+    message = str(error).lower()
+    return any(token in message for token in ('cublas', 'cudnn', 'cuda', 'ctranslate2', '.dll'))
 
 
 def load_model_names():
@@ -1244,10 +1211,18 @@ def build_analysis_graph():
         if not audio_path:
             return {"transcription_text": ""}
         try:
-            whisper_model, model_device = get_whisper_model(state.get("model_name", "base"))
+            model_name = state.get("model_name", "base")
+            whisper_model, model_device = get_whisper_model(model_name)
             print(f"INFO: Transcribing '{os.path.basename(audio_path)}' on {model_device}.")
             language = state.get("transcription_language") or None
-            transcript = transcribe_with_diarization(audio_path, whisper_model, language=language)
+            try:
+                transcript = transcribe_with_diarization(audio_path, whisper_model, language=language)
+            except Exception as exc:
+                if not model_device.startswith('cuda') or not is_cuda_runtime_error(exc):
+                    raise
+                print(f"WARNING: CUDA transcription failed ({exc}). Retrying '{model_name}' on CPU.")
+                cpu_model, _ = get_whisper_model(model_name, target_device='cpu')
+                transcript = transcribe_with_diarization(audio_path, cpu_model, language=language)
             transcript = (transcript or "").strip()
             if is_suspicious_transcript(transcript):
                 print(f"WARNING: Whisper transcript looks low-confidence or overfit to ISP keywords for '{os.path.basename(audio_path)}'.")
@@ -1283,6 +1258,11 @@ def build_analysis_graph():
             "internet", "connection", "wifi", "router", "slow", "disconnect", "los", "wan",
             "signal", "fiber", "outage", "offline", "net down", "not working", "down"
         ]
+        configure_router_tokens = [
+            "configure router", "router configuration", "configure the router", "router config",
+            "new router setup", "set up new router", "setup new router", "set up replacement router",
+            "replacement router", "replace router", "replaced router", "configure wifi", "wifi setup",
+        ]
         plan_tokens = [
             "plan", "upgrade", "downgrade", "speed", "offer", "pack", "package",
             "monthly pack", "expiry", "expired", "validity"
@@ -1300,6 +1280,10 @@ def build_analysis_graph():
             issue_code = "PAYMENT_CONFIRMATION"
             category = "Billing Issue / Account Deactivated"
             specialist_path = "Billing specialist"
+        elif matches_any(configure_router_tokens):
+            issue_code = "CONFIGURE_ROUTER"
+            category = "Router Configuration / Device Setup"
+            specialist_path = "Connectivity and field-support specialist"
         elif matches_any(connectivity_tokens):
             issue_code = "INTERNET_ISSUE"
             category = "Connectivity Issue"
@@ -1465,6 +1449,7 @@ Please provide the English summary now. Structure your response using the follow
             "INTERNET_ISSUE": "schedule_technician",
             "LOSS_OF_SIGNAL": "schedule_technician",
             "ROUTER_ISSUE": "schedule_technician",
+            "CONFIGURE_ROUTER": "schedule_technician",
             "OUTAGE_REPORT": "schedule_technician",
             "SLOW_SPEED": "schedule_technician",
             "WIFI_DISCONNECTING": "schedule_technician",
@@ -1571,7 +1556,7 @@ Please provide the English summary now. Structure your response using the follow
 
         if issue_code in {"PAYMENT_CONFIRMATION", "ACCOUNT_SUSPEND_REQUEST", "BILL_ENQUIRY", "INVOICE_REQUEST", "DISCONNECTION_REQUEST"}:
             return "billing"
-        if issue_code in {"INTERNET_ISSUE", "LOSS_OF_SIGNAL", "ROUTER_ISSUE", "OUTAGE_REPORT", "SLOW_SPEED", "WIFI_DISCONNECTING", "SITE_NOT_WORKING", "FIBER_CUT", "FIBER_CABLE_DAMAGED"}:
+        if issue_code in {"INTERNET_ISSUE", "LOSS_OF_SIGNAL", "ROUTER_ISSUE", "CONFIGURE_ROUTER", "OUTAGE_REPORT", "SLOW_SPEED", "WIFI_DISCONNECTING", "SITE_NOT_WORKING", "FIBER_CUT", "FIBER_CABLE_DAMAGED"}:
             return "connectivity"
         return "general"
 
@@ -1999,8 +1984,6 @@ def models_status():
 
     # --- Check Whisper Models ---
     try:
-        whisper_cache_path = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
-        os.makedirs(whisper_cache_path, exist_ok=True)
         for model_name in whisper_models_to_check:
             whisper_status[model_name] = {"status": "downloaded" if whisper_model_is_downloaded(model_name) else "not_downloaded"}
     except Exception as e:
@@ -2029,18 +2012,16 @@ def delete_agent_model(model_name):
 
 @app.route('/api/models/whisper/<model_name>', methods=['DELETE'])
 def delete_whisper_model(model_name):
-    """Deletes the locally cached Whisper model files, including alias variants like large-v3."""
+    """Deletes the local Faster-Whisper model directory from the Hugging Face cache."""
     try:
-        whisper_cache_path = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
-        deleted_files = []
-        for candidate in _get_whisper_cache_candidates(model_name):
-            file_path = os.path.join(whisper_cache_path, candidate)
-            if os.path.exists(file_path):
-                print(f"INFO: Deleting Whisper model '{model_name}' from '{file_path}'...")
-                os.remove(file_path)
-                deleted_files.append(file_path)
-
-        if deleted_files:
+        with loaded_models_lock:
+            for cache_key in [key for key in loaded_models if key.startswith(f'{model_name}@')]:
+                del loaded_models[cache_key]
+        model_path = download_model(model_name, local_files_only=True)
+        if os.path.isdir(model_path):
+            print(f"INFO: Deleting Whisper model '{model_name}' from '{model_path}'...")
+            shutil.rmtree(model_path)
+            gc.collect()
             print(f"INFO: Model '{model_name}' deleted successfully.")
             return jsonify({"message": f"Whisper model '{model_name}' deleted."}), 200
         return jsonify({"error": "Model file not found."}), 404

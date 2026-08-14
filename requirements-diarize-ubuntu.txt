@@ -10,7 +10,8 @@ numpy<2
 torch==2.1.2+cu121
 # Install torch from the CUDA wheel index for the exact environment:
 # pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121 torchaudio==2.1.2+cu121 -f https://download.pytorch.org/whl/cu121
-openai-whisper
+faster-whisper
+ctranslate2>=4.5,<5
 easyocr
 transformers
 accelerate
@@ -23,7 +24,8 @@ openpyxl
 
 # Diarization stack
 pyannote.audio==3.1.1
-git+https://github.com/m-bain/whisperx.git
+# WhisperX is intentionally omitted: it pins an older CTranslate2 backend that
+# conflicts with the CUDA 12-compatible Faster-Whisper runtime used by this app.
 
 # Install k2 from the official matching wheel for your CUDA build.
 # See: https://k2-fsa.github.io/k2/cuda.html

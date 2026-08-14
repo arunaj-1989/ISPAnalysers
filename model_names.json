@@ -1,6 +1,6 @@
 {
-    "default_agent_model": "mistral",
-    "default_whisper": "medium",
+    "default_agent_model": "phi3:mini",
+    "default_whisper": "turbo",
     "customer_data_root": "C:/Users/aruna/Downloads/interjet",
     "customer_excel_path": "C:/Users/aruna/Downloads/interjet/New Microsoft Excel Worksheet.xlsx",
     "monitor_interval_seconds": 5,
@@ -25,31 +25,43 @@
     "whisper_models": [
         {
             "id": "tiny",
-            "name": "Tiny (Fastest, ~1GB VRAM)"
+            "name": "Faster-Whisper Tiny (Smallest, CPU-friendly)"
         },
         {
             "id": "base",
-            "name": "Base (Fast, ~1GB VRAM)"
+            "name": "Faster-Whisper Base (Fast, CPU-friendly)"
         },
         {
             "id": "small",
-            "name": "Small (Balanced, ~2GB VRAM)"
+            "name": "Faster-Whisper Small (Balanced)"
         },
         {
             "id": "medium",
-            "name": "Medium (~5GB VRAM)"
+            "name": "Faster-Whisper Medium (Higher accuracy)"
+        },
+        {
+            "id": "distil-large-v3",
+            "name": "Faster-Whisper Distil Large v3 (Fast, high accuracy)"
+        },
+        {
+            "id": "distil-large-v3.5",
+            "name": "Faster-Whisper Distil Large v3.5 (Fastest Distil)"
         },
         {
             "id": "large-v2",
-            "name": "Large v2"
+            "name": "Faster-Whisper Large v2"
         },
         {
             "id": "large-v3",
-            "name": "Large v3"
+            "name": "Faster-Whisper Large v3 (Highest accuracy)"
         },
         {
             "id": "large-v3-turbo",
-            "name": "Large v3 Turbo"
+            "name": "Faster-Whisper Large v3 Turbo (Fast)"
+        },
+        {
+            "id": "turbo",
+            "name": "Faster-Whisper Turbo (Fastest Large variant)"
         }
     ]
 }

@@ -110,8 +110,6 @@ def categorize_and_suggest_fix(translated_text: str, worker, screenshot_text: st
         with worker.lock:
             if worker.model is not None:
                 st.info("Unloading Whisper model to free up VRAM for local AI...")
-                # Move model to CPU and delete to free VRAM
-                worker.model = worker.model.to('cpu')
                 del worker.model
                 worker.model = None
                 torch.cuda.empty_cache()
@@ -145,18 +143,11 @@ def categorize_and_suggest_fix(translated_text: str, worker, screenshot_text: st
 
 def transcribe_robust(model, audio_path, **kwargs):
     """
-    Wrapper for whisper's transcribe function that retries with more stable
-    parameters if a PyTorch error occurs.
+    Convert Faster-Whisper's segment iterator into the text mapping used by this page.
     """
-    try:
-        return model.transcribe(audio_path, **kwargs)
-    except Exception as e:
-        if "key.size(1) == value.size(1)" in str(e):
-            st.warning("A PyTorch error occurred during transcription. Retrying with more stable settings (fp32)...")
-            kwargs["fp16"] = False
-            return model.transcribe(audio_path, **kwargs)
-        else:
-            raise e
+    kwargs.pop("fp16", None)
+    segments, _ = model.transcribe(audio_path, **kwargs)
+    return {"text": " ".join(segment.text.strip() for segment in segments if segment.text.strip())}
 
 def get_ollama_device_info(model_name: str) -> str:
     """Checks if an Ollama model is loaded on CPU or GPU."""

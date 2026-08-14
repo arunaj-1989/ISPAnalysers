@@ -3,7 +3,8 @@ Flask-Cors
 psutil
 torch
 torchaudio
-openai-whisper
+faster-whisper
+ctranslate2>=4.5,<5
 easyocr
 transformers
 accelerate

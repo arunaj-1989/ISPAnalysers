@@ -807,7 +807,7 @@
                                                 <select class="form-select form-select-sm" id="agent-model" name="agent_model" form="upload-form"></select>
                                             </div>
                                             <div>
-                                                <label for="whisper-model" class="form-label small">Whisper Model</label>
+                                                <label for="whisper-model" class="form-label small">Faster-Whisper Model</label>
                                                 <select class="form-select form-select-sm" id="whisper-model" name="model" form="upload-form"></select>
                                             </div>
                                         </div>
@@ -1244,7 +1244,7 @@
                                     </div>
 
                                     <div class="settings-field">
-                                        <label for="default-whisper" class="form-label">Default Whisper Model</label>
+                                        <label for="default-whisper" class="form-label">Default Faster-Whisper Model</label>
                                         <select id="default-whisper" class="form-select"></select>
                                         <div class="form-text">Used for unattended audio ingestion.</div>
                                     </div>
@@ -1321,7 +1321,7 @@
                                             <div id="agent-model-downloader-list" class="list-group list-group-flush"></div>
                                         </div>
                                         <div class="col-lg-6">
-                                            <h6 class="mb-3">Whisper Models</h6>
+                                            <h6 class="mb-3">Faster-Whisper Models</h6>
                                             <div id="whisper-model-downloader-list" class="list-group list-group-flush"></div>
                                         </div>
                                     </div>
@@ -1680,10 +1680,19 @@
                         // that are not valid JSON.
                         if (!eventData.startsWith('{')) continue;
 
+                        let data;
                         try {
-                            const data = JSON.parse(eventData);
+                            data = JSON.parse(eventData);
+                        } catch (e) {
+                            console.error("Failed to parse JSON from stream:", line, e);
+                            continue;
+                        }
 
-                            if (data.error) throw new Error(data.error);
+                        if (data.error) {
+                            throw new Error(data.error);
+                        }
+
+                        try {
                             if (data.step === 'done') break;
 
                             const { step, status, result, message, required, specialist } = data;
@@ -1742,8 +1751,8 @@
                                 }
                             }
                         } catch (e) {
-                            console.error("Failed to parse JSON from stream:", line, e);
-                            // Continue to next line
+                            console.error("Failed to process stream event:", line, e);
+                            throw e;
                         }
                     }
                 }
@@ -1777,6 +1786,8 @@
                     friendlyMessage = 'Failed to parse server response. The data format may be incorrect. Check the browser console for details.';
                 } else if (error.message.startsWith('Server error:')) {
                     friendlyMessage = 'The server returned an error. This is usually a problem with the backend processing. Check the browser console for details from the server.';
+                } else if (error.message) {
+                    friendlyMessage = error.message;
                 }
                 errorDiv.textContent = friendlyMessage;
                 errorDiv.style.display = 'block';

@@ -6,7 +6,7 @@ Interjet Support Analyser is a Flask-based ISP support workspace that can analys
 
 - Manual analysis of one customer interaction at a time.
 - OCR for screenshots using EasyOCR.
-- Transcription for audio using Whisper.
+- Transcription for audio using Faster-Whisper.
 - Routed issue classification and specialist handling with LangChain + LangGraph.
 - Human review gate for uncertain cases.
 - Approval-based operational actions for supported issue categories.
@@ -34,7 +34,7 @@ graph TD
     F --> S[Settings UI]
 
     F --> O[OCR: EasyOCR]
-    F --> W[Transcription: Whisper]
+   F --> W[Transcription: Faster-Whisper]
     F --> L[LLM Routing and Summaries: LangChain + LangGraph + Ollama]
 
     F --> H[history.json]
@@ -50,7 +50,7 @@ graph TD
 
 - **Backend**: Flask, Flask-Cors
 - **Workflow Orchestration**: LangChain, LangGraph, Ollama
-- **Speech / OCR**: Whisper, EasyOCR
+- **Speech / OCR**: Faster-Whisper, EasyOCR
 - **Data Storage**: JSON for history and model defaults, SQLite for customer monitoring
 - **Frontend**: HTML, JavaScript, Bootstrap 5, Bootstrap Icons
 - **Utilities**: openpyxl for Excel mapping, psutil for system metrics
@@ -107,7 +107,7 @@ Use the Settings page to configure:
 - Customer Data Folder
 - Customer Mapping Excel
 - Monitor Interval
-- Default Whisper Model
+- Default Faster-Whisper Model
 - Default Agent Model
 
 The monitor watches the configured root folder for subfolders containing screenshots and audio. Folder names are matched against the Excel mapping, then persisted to SQLite.

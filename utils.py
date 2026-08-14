@@ -10,14 +10,12 @@ import torch
 from scipy.io.wavfile import write as wav_write
 
 try:
-    import whisper
-    if str(getattr(whisper, "__file__", "")).endswith("whisper.py"):
-        raise ImportError("Detected legacy 'whisper' package.")
+    from faster_whisper import WhisperModel
 except Exception as exc:
     st.error(
-        "The 'openai-whisper' package is not installed. This is a critical dependency."
+        "The 'faster-whisper' package is not installed. This is a critical dependency."
     )
-    st.code("pip install openai-whisper", language="bash")
+    st.code("pip install faster-whisper", language="bash")
     st.caption(str(exc))
     st.stop()
 
@@ -61,7 +59,11 @@ class DecodeWorker:
         if self.model_name == model_name:
             return
         self._log(f"Loading Whisper '{model_name}' on {device}…")
-        self.model = whisper.load_model(model_name, device=device)
+        self.model = WhisperModel(
+            model_name,
+            device=device,
+            compute_type="float16" if device == "cuda" else "int8",
+        )
         self.model_name = model_name
         self._log(f"Model '{model_name}' ready.")
 
@@ -166,16 +168,16 @@ class DecodeWorker:
                     return
                 self._log(f"Decoding – rms={rms:.4f}  peak={peak:.4f}  samples={len(chunk)}")
 
-                tamil_r = self.model.transcribe(
+                tamil_segments, _ = self.model.transcribe(
                     str(tmp), task="transcribe", language=SOURCE_LANGUAGE,
-                    fp16=True, temperature=0, condition_on_previous_text=False,
+                    temperature=0, condition_on_previous_text=False,
                     no_speech_threshold=0.6, beam_size=5,
                 )
                 self._log("Tamil done.")
 
-                english_r = self.model.transcribe(
+                english_segments, _ = self.model.transcribe(
                     str(tmp), task="translate", language=SOURCE_LANGUAGE,
-                    fp16=True, temperature=0, condition_on_previous_text=False,
+                    temperature=0, condition_on_previous_text=False,
                     no_speech_threshold=0.6, beam_size=5,
                 )
                 self._log("English done.")
@@ -183,8 +185,8 @@ class DecodeWorker:
                 self.chunks_decoded += 1
                 self.last_error = ""
 
-            tamil   = " ".join((tamil_r.get("text",   "") or "").strip().split())
-            english = " ".join((english_r.get("text", "") or "").strip().split())
+            tamil = " ".join(segment.text.strip() for segment in tamil_segments if segment.text.strip())
+            english = " ".join(segment.text.strip() for segment in english_segments if segment.text.strip())
 
             self._log(f"T: {tamil[:80]!r}")
             self._log(f"E: {english[:80]!r}")

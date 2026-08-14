@@ -9,11 +9,13 @@
 ---
 
 ### 1. NEW_CONNECTION
-- **Keywords:** "new connection booking", "broadband enquiry", "internet availability", "new broadband connection"
+- **Keywords:** "new connection booking", "broadband enquiry", "internet availability", "new broadband connection", "new connection", "interested in an internet plan", "internet plan for TV", "internet plan for OTT", "TV and OTT plan", "broadband plan for TV and OTT"
+- **Routing note:** A customer asking about getting an internet/broadband plan for TV, OTT, or home use is a new sales/connection enquiry when there is no clear indication that they already have an active connection. Route these requests to `NEW_CONNECTION`, not `INTERNET_ISSUE`.
 - **SOP:**
   1. Collect full installation address and pincode.
   2. Check feeder box/DP coverage in area.
   3. Pass qualified lead to local sales team.
+- **Recommended next step:** Do not dispatch a repair or connectivity technician for a new sales enquiry. Verify availability and route the qualified lead to sales; schedule field work only after a new installation order is approved.
 
 ### 2. PLAN_DETAILS_ENQUIRY
 - **Keywords:** "available packages", "tariff details", "plan options", "current offers"

@@ -10,9 +10,10 @@ import time
 import gc
 import importlib
 import shutil
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 import contextlib
 import io
+import subprocess
 import tkinter as tk
 from tkinter import filedialog
 from datetime import datetime
@@ -301,6 +302,82 @@ def whisper_model_is_downloaded(model_name: str) -> bool:
         return False
 
 
+def normalize_ollama_model_name(model_name: str) -> str:
+    """Normalize Ollama model names so we can compare them reliably."""
+    name = (model_name or "").strip()
+    if not name:
+        return ""
+    if ":" not in name:
+        return f"{name}:latest"
+    return name
+
+
+def infer_ollama_runtime_device(
+    model_name: str,
+    show_result: dict[str, Any] | None = None,
+    ps_result: dict[str, Any] | None = None,
+) -> str:
+    """Return the runtime device reported by Ollama for the summary model.
+
+    This is different from the local PyTorch CUDA flag: Ollama may run on CPU even
+    when CUDA is available, and vice versa. The function checks both the model
+    metadata and the active process list to identify whether VRAM is being used.
+    """
+    normalized_name = normalize_ollama_model_name(model_name)
+    if not normalized_name:
+        return "CPU"
+
+    # Inspect "ollama show" metadata first. Some Ollama builds expose GPU hints in
+    # the model details, even when the model is not actively running.
+    if show_result is not None:
+        details = show_result.get("details") or {}
+        params = details.get("parameters") or {}
+        if isinstance(params, dict):
+            for key in params:
+                key_text = str(key).lower()
+                if "gpu" in key_text:
+                    return "GPU"
+
+    # Inspect active Ollama processes next. If the model is loaded with VRAM, the
+    # model entry in "ollama ps" will usually expose a non-zero VRAM size.
+    model_entries: list[dict[str, Any]] = []
+    if isinstance(ps_result, dict):
+        for key in ("models", "running"):
+            value = ps_result.get(key)
+            if isinstance(value, list):
+                model_entries.extend(item for item in value if isinstance(item, dict))
+
+    for entry in model_entries:
+        candidate_name = str(entry.get("name") or entry.get("model") or "").strip()
+        candidate_key = normalize_ollama_model_name(candidate_name)
+        if candidate_key and candidate_key == normalized_name:
+            vram = entry.get("size_vram") or entry.get("size_vram_bytes") or 0
+            if int(vram) > 0:
+                return "GPU"
+
+    # Fall back to the local Ollama service metadata if the direct calls are
+    # available at runtime. This reflects the actual runtime model placement.
+    try:
+        show_data = ollama.show(normalized_name)
+        if isinstance(show_data, dict):
+            device = infer_ollama_runtime_device(normalized_name, show_result=show_data)
+            if device == "GPU":
+                return "GPU"
+    except Exception:
+        pass
+
+    try:
+        ps_data = ollama.ps()
+        if isinstance(ps_data, dict):
+            device = infer_ollama_runtime_device(normalized_name, ps_result=ps_data)
+            if device == "GPU":
+                return "GPU"
+    except Exception:
+        pass
+
+    return "CPU"
+
+
 def clear_vram_before_summary() -> None:
     """Free CUDA memory before loading the LLM summary model after Whisper transcription."""
     if DEVICE != 'cuda' or not torch.cuda.is_available():
@@ -339,6 +416,58 @@ def format_diarized_segments(segments: list[dict[str, Any]] | None) -> str:
         elif text:
             lines.append(text)
     return "\n".join(lines)
+
+
+def cleanup_temp_audio_file(audio_path: str) -> None:
+    """Remove cleaned temporary audio artifacts created for transcription."""
+    if not audio_path or not os.path.exists(audio_path):
+        return
+
+    try:
+        os.remove(audio_path)
+    except OSError:
+        pass
+
+
+def preprocess_audio_for_transcription(audio_path: str) -> str:
+    """Return a cleaned audio file for Whisper. This helps with noisy call recordings."""
+    if not audio_path or not os.path.exists(audio_path):
+        return audio_path
+
+    ffmpeg_bin = shutil.which('ffmpeg')
+    if not ffmpeg_bin:
+        print('WARNING: ffmpeg not found. Skipping noisy-audio cleanup before transcription.')
+        return audio_path
+
+    output_path = os.path.splitext(audio_path)[0] + '_cleaned.wav'
+    if os.path.exists(output_path):
+        try:
+            os.remove(output_path)
+        except OSError:
+            pass
+
+    command = [
+        ffmpeg_bin,
+        '-y',
+        '-i', audio_path,
+        '-af', 'highpass=f=80,lowpass=f=8000,afftdn=nf=-30,volume=1.5,silenceremove=1:0.1:0.01',
+        '-ac', '1',
+        '-ar', '16000',
+        output_path,
+    ]
+
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0:
+            print(f'WARNING: Audio cleanup command failed for {audio_path}: {result.stderr or result.stdout or "unknown error"}')
+            return audio_path
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+            print(f'INFO: Audio cleaned before transcription: {output_path}')
+            return output_path
+    except Exception as exc:
+        print(f'WARNING: Failed to clean noisy audio for transcription: {exc}')
+
+    return audio_path
 
 
 def transcribe_with_diarization(audio_path: str, whisper_model: Any, language: str | None = None) -> str:
@@ -546,6 +675,26 @@ def enforce_grounded_summary_scope(summary_text: str, transcription_text: str, o
         rebuilt_lines.append(f'**{field_name}:** {value}')
 
     return '\n'.join(rebuilt_lines)
+
+
+def enforce_issue_recommendation(summary_text: str, issue_code: str) -> str:
+    """Keep the displayed recommendation aligned with the deterministic issue route."""
+    if not summary_text:
+        return summary_text
+
+    recommendations = {
+        'NEW_CONNECTION': (
+            'Collect the installation address and pincode, verify service availability, '
+            'and forward the qualified enquiry to the sales team.'
+        ),
+        'PLAN_DETAILS_ENQUIRY': (
+            'Share the available plans and applicable TV/OTT bundle options with the customer.'
+        ),
+    }
+    recommendation = recommendations.get(issue_code)
+    if not recommendation:
+        return summary_text
+    return _replace_summary_field(summary_text, 'Recommended Next Step', recommendation)
 
 
 def load_monitor_config() -> dict[str, Any]:
@@ -800,6 +949,7 @@ def build_initial_state(
         'persist_history': persist_history,
         'ocr_result': [],
         'transcription_text': '',
+        'audio_confidence': 0.0,
         'issue_category': 'Other Issues',
         'specialist_path': 'General support specialist',
         'summary_text': '',
@@ -811,6 +961,64 @@ def build_initial_state(
         'action_result': '',
         'error': '',
     }
+
+
+def is_suspicious_transcript(transcript: str) -> bool:
+    """Flag low-confidence transcripts that are empty, gibberish, or heavily overfit."""
+    text = (transcript or "").strip()
+    if not text:
+        return True
+
+    words = re.findall(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)?", text)
+    if not words:
+        return True
+    if len(words) < 4:
+        return True
+
+    alpha_chars = sum(ch.isalpha() for ch in text)
+    if len(text) > 0 and alpha_chars / len(text) < 0.35:
+        return True
+
+    word_freq = Counter(words)
+    repeated_ratio = sum(count for count in word_freq.values() if count > 2) / len(words)
+    if repeated_ratio > 0.45 and len(words) > 12:
+        return True
+
+    isp_tokens = {
+        "renewal", "recharge", "router", "wifi", "internet", "pack", "bill",
+        "plan", "line", "service", "outage", "signal", "broadband", "router lights"
+    }
+    lowered = text.lower()
+    hit_count = sum(1 for token in isp_tokens if token in lowered)
+    return hit_count >= 4 and len(words) <= 16 and len(set(words)) <= 8
+
+
+def calculate_audio_confidence(transcript: str) -> float:
+    """Estimate how usable the audio transcript is for downstream summarization."""
+    text = (transcript or "").strip()
+    if not text:
+        return 0.0
+
+    words = re.findall(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)?", text)
+    if not words:
+        return 0.0
+    if len(words) < 4:
+        return 15.0
+
+    unique_ratio = len(set(word.lower() for word in words)) / len(words)
+    repeated_words = sum(1 for word in Counter(words).values() if word > 2)
+    lowered = text.lower()
+    isp_tokens = {
+        "renewal", "recharge", "router", "wifi", "internet", "pack", "bill",
+        "plan", "line", "service", "outage", "signal", "broadband", "router lights"
+    }
+    hit_count = sum(1 for token in isp_tokens if token in lowered)
+
+    score = 45.0 + len(words) * 1.8 + unique_ratio * 35.0 - hit_count * 3.0 - repeated_words * 7.0
+    if is_suspicious_transcript(text):
+        score -= 25.0
+    score = max(0.0, min(100.0, score))
+    return round(score, 1)
 
 
 def save_monitored_artifact(
@@ -1129,6 +1337,7 @@ class AgentState(TypedDict):
     persist_history: bool
     ocr_result: list[str]
     transcription_text: str
+    audio_confidence: float
     issue_code: str
     issue_category: str
     specialist_path: str
@@ -1145,48 +1354,11 @@ class AgentState(TypedDict):
 def build_analysis_graph():
     """Builds and compiles the analysis agent workflow using LangGraph."""
 
-    def get_whisper_transcription_prompt() -> str:
-        """Return a short, high-signal ISP vocabulary hint without over-biasing Whisper."""
-        vocab = [
-            "renewal",
-            "recharge",
-            "router",
-            "wifi",
-            "internet",
-            "pack",
-            "bill",
-            "plan",
-            "line",
-            "service",
-            "outage",
-            "signal",
-            "broadband",
-        ]
-        return " ".join(vocab)
-
-    def is_suspicious_transcript(transcript: str) -> bool:
-        """Flag low-confidence transcripts that look overfit to ISP keywords."""
-        text = (transcript or "").strip()
-        if not text:
-            return True
-
-        words = text.split()
-        if len(words) < 4:
-            return True
-
-        isp_tokens = {
-            "renewal", "recharge", "router", "wifi", "internet", "pack", "bill",
-            "plan", "line", "service", "outage", "signal", "broadband", "router lights"
-        }
-        lowered = text.lower()
-        hit_count = sum(1 for token in isp_tokens if token in lowered)
-        return hit_count >= 4 and len(words) <= 16
-
     def preprocess_node(state: AgentState) -> dict[str, Any]:
         return {
             "ocr_result": [],
             "transcription_text": "",
-            "issue_code": "GENERAL_INQUIRY",
+            "audio_confidence": 0.0,
             "issue_category": "Other Issues",
             "specialist_path": "General support specialist",
             "summary_text": "",
@@ -1209,28 +1381,34 @@ def build_analysis_graph():
     def transcribe_node(state: AgentState) -> dict[str, Any]:
         audio_path = state.get("audio_path")
         if not audio_path:
-            return {"transcription_text": ""}
+            return {"transcription_text": "", "audio_confidence": 0.0}
+        cleaned_audio_path = audio_path
         try:
             model_name = state.get("model_name", "base")
+            cleaned_audio_path = preprocess_audio_for_transcription(audio_path)
             whisper_model, model_device = get_whisper_model(model_name)
-            print(f"INFO: Transcribing '{os.path.basename(audio_path)}' on {model_device}.")
+            print(f"INFO: Transcribing '{os.path.basename(cleaned_audio_path if cleaned_audio_path != audio_path else audio_path)}' on {model_device}.")
             language = state.get("transcription_language") or None
             try:
-                transcript = transcribe_with_diarization(audio_path, whisper_model, language=language)
+                transcript = transcribe_with_diarization(cleaned_audio_path, whisper_model, language=language)
             except Exception as exc:
                 if not model_device.startswith('cuda') or not is_cuda_runtime_error(exc):
                     raise
                 print(f"WARNING: CUDA transcription failed ({exc}). Retrying '{model_name}' on CPU.")
                 cpu_model, _ = get_whisper_model(model_name, target_device='cpu')
-                transcript = transcribe_with_diarization(audio_path, cpu_model, language=language)
+                transcript = transcribe_with_diarization(cleaned_audio_path, cpu_model, language=language)
             transcript = (transcript or "").strip()
+            confidence = calculate_audio_confidence(transcript)
             if is_suspicious_transcript(transcript):
-                print(f"WARNING: Whisper transcript looks low-confidence or overfit to ISP keywords for '{os.path.basename(audio_path)}'.")
-            return {"transcription_text": transcript, "error": ""}
+                print(f"WARNING: Whisper transcript looks low-confidence or overfit to ISP keywords for '{os.path.basename(audio_path)}'. Confidence={confidence}.")
+            return {"transcription_text": transcript, "audio_confidence": confidence, "error": ""}
         except Exception as e:
             error_message = f"Transcription failed: {str(e)}"
             print(f"ERROR: {error_message}")
-            return {"transcription_text": "", "error": error_message}
+            return {"transcription_text": "", "audio_confidence": 0.0, "error": error_message}
+        finally:
+            if cleaned_audio_path and cleaned_audio_path != audio_path and os.path.exists(cleaned_audio_path):
+                cleanup_temp_audio_file(cleaned_audio_path)
 
     def classify_issue_node(state: AgentState) -> dict[str, Any]:
         text_blob = f"{state.get('transcription_text', '')} {' '.join(state.get('ocr_result', []))}".lower()
@@ -1267,11 +1445,21 @@ def build_analysis_graph():
             "plan", "upgrade", "downgrade", "speed", "offer", "pack", "package",
             "monthly pack", "expiry", "expired", "validity"
         ]
+        sales_connection_tokens = [
+            "interested in an internet plan", "interested in internet plan",
+            "internet plan for tv", "internet plan for ott", "tv and ott plan",
+            "tv and ott", "broadband plan for tv", "broadband plan for ott",
+            "plan for television", "plan for home tv"
+        ]
 
         if matches_any(renewal_tokens):
             issue_code = "PLAN_UPGRADE"
             category = "Plan Change / Upgrade Request"
             specialist_path = "General support specialist"
+        elif matches_any(sales_connection_tokens):
+            issue_code = "NEW_CONNECTION"
+            category = "New Connection Request"
+            specialist_path = "Sales and onboarding specialist"
         elif matches_any(new_connection_tokens):
             issue_code = "NEW_CONNECTION"
             category = "New Connection Request"
@@ -1359,6 +1547,7 @@ Important grounding rules:
 - Only populate payment fields if the transcript or OCR explicitly shows payment evidence.
 - If there is no payment evidence, set all payment fields to N/A and do not mention payment-related details in Key Information.
 - Treat terms like "pack", "internet pack", "renew my pack", "renewal", "recharge", and "top-up" as plan or service-renewal language only when they are clearly part of the discussed issue.
+- For `NEW_CONNECTION`, recommend collecting the installation address and pincode, checking service availability, and forwarding the qualified enquiry to sales. Do not recommend dispatching a repair or connectivity technician unless an existing-service fault is explicitly reported.
 
 ---
 Here is the interaction data to analyze:
@@ -1380,6 +1569,8 @@ Please provide the English summary now. Structure your response using the follow
     def run_summary(state: AgentState, specialist_focus: str) -> dict[str, Any]:
         agent_model = state.get("agent_model", "llama3")
         clear_vram_before_summary()
+        summary_runtime_device = infer_ollama_runtime_device(agent_model)
+        print(f"INFO: Summary model '{agent_model}' resolved to Ollama runtime device: {summary_runtime_device}.")
         llm = ChatOllama(model=agent_model, temperature=0)
         llm_response = llm.invoke(build_prompt(state, specialist_focus))
         summary_text = getattr(llm_response, "content", "") or ""
@@ -1393,7 +1584,11 @@ Please provide the English summary now. Structure your response using the follow
             state.get("transcription_text", ""),
             state.get("ocr_result", []),
         )
-        return {"summary_text": summary_text}
+        summary_text = enforce_issue_recommendation(
+            summary_text,
+            state.get("issue_code", "GENERAL_INQUIRY"),
+        )
+        return {"summary_text": summary_text, "summary_runtime_device": summary_runtime_device}
 
     def summarize_billing_node(state: AgentState) -> dict[str, Any]:
         return run_summary(state, "Billing specialist")
@@ -2120,8 +2315,13 @@ def system_info():
     v_mem = psutil.virtual_memory()
     disk = psutil.disk_usage('/')
 
+    model_config = load_model_names()
+    default_agent_model = model_config.get('default_agent_model', 'llama3')
+    summary_runtime_device = infer_ollama_runtime_device(default_agent_model)
+
     return jsonify({
         'device': DEVICE,
+        'ollama_summary_device': summary_runtime_device,
         'gpu': gpu_info,
         'gpu_devices': gpu_devices,
         'gpu_scheduler': {
@@ -2185,7 +2385,8 @@ def process_files():
             else:
                 yield f"data: {json.dumps({'step': 'transcribe', 'status': 'skipped'})}\n\n"
 
-            yield f"data: {json.dumps({'step': 'summarize', 'status': 'in_progress', 'message': f'Generating AI summary with {agent_model}...'})}\n\n"
+            summary_runtime_device = infer_ollama_runtime_device(agent_model)
+            yield f"data: {json.dumps({'step': 'summarize', 'status': 'in_progress', 'message': f'Generating AI summary with {agent_model} on {summary_runtime_device}...'})}\n\n"
             yield f"data: {json.dumps({'step': 'classify', 'status': 'in_progress', 'message': 'Classifying issue type for routed agent handling...'})}\n\n"
             yield f"data: {json.dumps({'step': 'action', 'status': 'in_progress', 'message': 'Preparing category action plan and approval check...'})}\n\n"
 
@@ -2211,7 +2412,7 @@ def process_files():
                     if transcribe_error:
                         yield f"data: {json.dumps({'step': 'transcribe', 'status': 'error', 'message': transcribe_error, 'result': ''})}\n\n"
                     else:
-                        yield f"data: {json.dumps({'step': 'transcribe', 'status': 'complete', 'result': update['transcribe'].get('transcription_text', '')})}\n\n"
+                        yield f"data: {json.dumps({'step': 'transcribe', 'status': 'complete', 'result': update['transcribe'].get('transcription_text', ''), 'confidence': update['transcribe'].get('audio_confidence', 0.0)})}\n\n"
                 if "classify_issue" in update:
                     yield f"data: {json.dumps({'step': 'classify', 'status': 'complete', 'result': update['classify_issue'].get('issue_category', 'Other Issues'), 'specialist': update['classify_issue'].get('specialist_path', 'General support specialist')})}\n\n"
                 if "summarize_billing" in update:
@@ -2244,16 +2445,22 @@ def process_files():
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
         finally:
-            # 5. Clean up uploaded files
+            # 5. Clean up uploaded files and generated temp audio artifacts
             if audio_path and os.path.exists(audio_path):
                 os.remove(audio_path)
             if screenshot_path and os.path.exists(screenshot_path):
                 os.remove(screenshot_path)
-            
+
+            cleaned_audio_candidate = os.path.splitext(audio_path)[0] + '_cleaned.wav' if audio_path else None
+            if cleaned_audio_candidate and os.path.exists(cleaned_audio_candidate):
+                os.remove(cleaned_audio_candidate)
+
             # 6. Clear GPU cache and unload models after analysis
             if DEVICE == 'cuda':
                 loaded_models.clear()
+                gc.collect()
                 torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
                 print("INFO: GPU cache cleared and all models unloaded.")
 
     return Response(generate_progress(), mimetype='text/event-stream')

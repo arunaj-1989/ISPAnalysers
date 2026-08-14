@@ -918,19 +918,29 @@
                                 <strong><i class="bi bi-diagram-3 me-2"></i>LangGraph Decision Trace</strong>
                             </div>
                             <div class="row g-2 small">
-                                <div class="col-md-4">
+                                <div class="col-md-3">
+                                    <div class="text-muted">Audio File</div>
+                                    <div id="trace-audio-file" class="fw-semibold">N/A</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-muted">Audio Confidence</div>
+                                    <div id="trace-audio-confidence" class="fw-semibold">N/A</div>
+                                </div>
+                                <div class="col-md-2">
                                     <div class="text-muted">Routed Category</div>
                                     <div id="trace-category" class="fw-semibold">N/A</div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <div class="text-muted">Specialist Path</div>
                                     <div id="trace-specialist" class="fw-semibold">General support specialist</div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <div class="text-muted">Review Required</div>
                                     <div id="trace-review-required" class="fw-semibold">No</div>
                                 </div>
-                                <div class="col-md-2">
+                            </div>
+                            <div class="row g-2 small mt-1">
+                                <div class="col-md-12">
                                     <div class="text-muted">Review Reason</div>
                                     <div id="trace-review-reason" class="fw-semibold">No manual review required.</div>
                                 </div>
@@ -1475,12 +1485,17 @@
                 
                 const gpuContainer = document.getElementById('gpu-info-container');
                 const cpuOnlyContainer = document.getElementById('cpu-only-container');
+                const summaryDeviceNode = document.getElementById('summary-device-status');
 
                 let percent_used = 0;
                 let used_gb = 0;
                 let total_gb = 0;
                 const cpu_percent = data.cpu.percent.toFixed(0);
                 const mem_percent = data.ram.percent.toFixed(0);
+                const summaryDevice = data.ollama_summary_device || 'CPU';
+                if (summaryDeviceNode) {
+                    summaryDeviceNode.textContent = `AI Summary: ${summaryDevice}`;
+                }
 
                 if (data.device === 'cuda' && data.gpu && data.gpu.name) {
                     gpuContainer.style.display = 'block';
@@ -1593,6 +1608,9 @@
             const traceSpecialistEl = document.getElementById('trace-specialist');
             const traceReviewRequiredEl = document.getElementById('trace-review-required');
             const traceReviewReasonEl = document.getElementById('trace-review-reason');
+            const traceAudioFileEl = document.getElementById('trace-audio-file');
+            const traceAudioConfidenceEl = document.getElementById('trace-audio-confidence');
+            const selectedAudioName = audioFile ? audioFile.name : 'N/A';
 
             // Reset UI elements
             resetAnalysisUI();
@@ -1638,6 +1656,8 @@
             traceSpecialistEl.textContent = 'General support specialist';
             traceReviewRequiredEl.textContent = 'No';
             traceReviewReasonEl.textContent = 'No manual review required.';
+            traceAudioFileEl.textContent = selectedAudioName;
+            traceAudioConfidenceEl.textContent = 'N/A';
 
             const results = {};
 
@@ -1695,7 +1715,7 @@
                         try {
                             if (data.step === 'done') break;
 
-                            const { step, status, result, message, required, specialist } = data;
+                            const { step, status, result, message, required, specialist, confidence } = data;
                             const stepUI = steps[step];
 
                             if (!stepUI) continue; // Ignore unknown steps
@@ -1727,6 +1747,10 @@
                                 if (step === 'classify' && result) {
                                     traceCategoryEl.textContent = result;
                                     traceSpecialistEl.textContent = specialist || 'General support specialist';
+                                }
+                                if (step === 'transcribe' && status === 'complete') {
+                                    traceAudioFileEl.textContent = selectedAudioName;
+                                    traceAudioConfidenceEl.textContent = typeof confidence === 'number' ? `${confidence.toFixed(1)}%` : 'N/A';
                                 }
                                 if (step === 'review') {
                                     traceReviewRequiredEl.textContent = required ? 'Yes' : 'No';

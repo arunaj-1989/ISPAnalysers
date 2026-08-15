@@ -1,6 +1,6 @@
 {
     "default_agent_model": "mistral",
-    "default_whisper": "large-v3-turbo",
+    "default_whisper": "large-v3",
     "customer_data_root": "C:/Users/aruna/Downloads/interjet",
     "customer_excel_path": "C:/Users/aruna/Downloads/interjet/New Microsoft Excel Worksheet.xlsx",
     "monitor_interval_seconds": 5,

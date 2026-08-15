@@ -687,6 +687,9 @@
                             <a href="#" class="nav-link active" id="nav-analyser" title="Analyser"><i class="bi bi-magic me-2"></i><span class="nav-text">Analyser</span></a>
                         </li>
                         <li class="nav-item">
+                            <a href="#" class="nav-link" id="nav-batch" title="Batch Analysis"><i class="bi bi-stack me-2"></i><span class="nav-text">Batch Analysis</span></a>
+                        </li>
+                        <li class="nav-item">
                             <a href="#" class="nav-link" id="nav-dashboard" title="Dashboard"><i class="bi bi-layout-text-sidebar-reverse me-2"></i><span class="nav-text">Dashboard</span></a>
                         </li>
                         <li class="nav-item">
@@ -978,6 +981,56 @@
                                 <pre id="ocr-text" class="p-3 rounded bg-body-tertiary"></pre>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Batch Analysis View -->
+            <main class="col-12 col-md-9 ms-md-auto col-lg-10 ms-lg-auto px-md-4 main-content" id="batch-view" style="display: none;">
+                <header class="text-center mb-4 header page-shell">
+                    <div class="page-kicker mb-2">Workspace</div>
+                    <h1 class="display-6 mb-2">Batch Analysis</h1>
+                    <p class="mb-0 mx-auto page-intro">Select multiple audio or image files and review each completed analysis as it arrives.</p>
+                </header>
+                <div class="card card-glass mb-4">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+                            <div>
+                                <div class="page-kicker mb-2">Analysis</div>
+                                <div class="section-title">Process a group of files</div>
+                                <p class="section-subtitle">Each file receives an AI Summary, Audio Transcription, and Image Text OCR result where applicable.</p>
+                            </div>
+                            <button type="button" id="clear-batch-btn" class="btn btn-outline-secondary btn-sm"><i class="bi bi-eraser me-1"></i>Clear Results</button>
+                        </div>
+                        <form id="batch-form">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-lg-6">
+                                    <label for="batch-files" class="form-label fw-semibold small"><i class="bi bi-files me-2"></i>Audio and Image Files</label>
+                                    <input type="file" class="form-control form-control-sm" id="batch-files" name="files" accept="audio/*,image/*" multiple>
+                                </div>
+                                <div class="col-md-4 col-lg-3">
+                                    <label for="batch-agent-model" class="form-label small">AI Summary Model</label>
+                                    <select class="form-select form-select-sm" id="batch-agent-model"></select>
+                                </div>
+                                <div class="col-md-4 col-lg-2">
+                                    <label for="batch-whisper-model" class="form-label small">Whisper Model</label>
+                                    <select class="form-select form-select-sm" id="batch-whisper-model"></select>
+                                </div>
+                                <div class="col-md-4 col-lg-1 d-grid">
+                                    <button type="submit" id="start-batch-btn" class="btn btn-primary btn-sm"><i class="bi bi-play-fill"></i><span class="visually-hidden">Start</span></button>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="batch-progress" class="mt-4" style="display: none;"></div>
+                    </div>
+                </div>
+                <div class="card card-glass">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Processed Audio and Image Results</h5>
+                        <span id="batch-result-count" class="badge text-bg-secondary">0</span>
+                    </div>
+                    <div class="card-body" id="batch-results">
+                        <p id="batch-empty-state" class="text-muted mb-0">Completed files will appear here.</p>
                     </div>
                 </div>
             </main>
@@ -1925,21 +1978,120 @@
             }
         });
 
+        // --- Batch Analysis ---
+        document.getElementById('batch-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const files = Array.from(document.getElementById('batch-files').files);
+            if (!files.length) {
+                showToast('Input Required', 'Please select at least one audio or image file.', 'danger');
+                return;
+            }
+
+            const formData = new FormData();
+            files.forEach(file => formData.append('files', file));
+            formData.append('model', document.getElementById('batch-whisper-model').value);
+            formData.append('agent_model', document.getElementById('batch-agent-model').value);
+
+            const startButton = document.getElementById('start-batch-btn');
+            const progress = document.getElementById('batch-progress');
+            const resultsContainer = document.getElementById('batch-results');
+            const emptyState = document.getElementById('batch-empty-state');
+            startButton.disabled = true;
+            progress.style.display = 'block';
+            progress.innerHTML = `<div class="progress" role="progressbar"><div id="batch-progress-bar" class="progress-bar" style="width: 0%"></div></div><div id="batch-progress-text" class="small text-muted mt-2">Starting batch...</div>`;
+            resultsContainer.querySelectorAll('.batch-result-card').forEach(card => card.remove());
+            emptyState.style.display = 'none';
+            document.getElementById('batch-result-count').textContent = '0';
+
+            try {
+                const response = await fetch('/api/process-batch', {method: 'POST', body: formData});
+                if (!response.ok) throw new Error(await response.text());
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let completed = 0;
+
+                while (true) {
+                    const {value, done} = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, {stream: true});
+                    const events = buffer.split('\n\n');
+                    buffer = events.pop();
+                    for (const eventText of events) {
+                        const dataLine = eventText.split('\n').find(line => line.startsWith('data: '));
+                        if (!dataLine) continue;
+                        const data = JSON.parse(dataLine.substring(6));
+                        if (data.type === 'file_start') {
+                            document.getElementById('batch-progress-text').textContent = `Processing ${data.name}...`;
+                        } else if (data.type === 'file_complete') {
+                            completed += 1;
+                            const card = document.createElement('div');
+                            card.className = 'batch-result-card border rounded p-3 mb-3';
+                            card.innerHTML = `<h6 class="mb-3"></h6><div class="row g-3"><div class="col-lg-4"><div class="text-muted small">AI Summary</div><div class="summary" style="white-space: pre-wrap;"></div></div><div class="col-lg-4"><div class="text-muted small">Audio Transcription</div><div class="transcription" style="white-space: pre-wrap;"></div></div><div class="col-lg-4"><div class="text-muted small">Image Text OCR</div><pre class="ocr bg-body-tertiary p-2 rounded mb-0"></pre></div></div>`;
+                            card.querySelector('h6').textContent = data.name;
+                            card.querySelector('.summary').textContent = data.summary || 'No summary generated.';
+                            card.querySelector('.transcription').textContent = data.kind === 'audio' ? (data.transcription || 'No transcription available.') : 'Not applicable for image files.';
+                            card.querySelector('.ocr').textContent = data.kind === 'image' ? ((data.ocr || []).join('\n') || 'No text found in image.') : 'Not applicable for audio files.';
+                            resultsContainer.appendChild(card);
+                            document.getElementById('batch-result-count').textContent = String(completed);
+                            document.getElementById('batch-progress-bar').style.width = `${(completed / files.length) * 100}%`;
+                        } else if (data.type === 'file_error') {
+                            showToast('File Skipped', `${data.name}: ${data.error}`, 'warning');
+                        } else if (data.type === 'batch_error') {
+                            throw new Error(data.error);
+                        }
+                    }
+                }
+                document.getElementById('batch-progress-text').textContent = `Completed ${completed} of ${files.length} file(s).`;
+                showToast('Batch Complete', `Processed ${completed} of ${files.length} file(s).`, 'success');
+            } catch (error) {
+                document.getElementById('batch-progress-text').textContent = `Batch failed: ${error.message}`;
+                showToast('Batch Error', error.message, 'danger');
+            } finally {
+                startButton.disabled = false;
+                document.getElementById('batch-files').value = '';
+                updateSystemInfo();
+            }
+        });
+
+        document.getElementById('clear-batch-btn').addEventListener('click', () => {
+            document.querySelectorAll('.batch-result-card').forEach(card => card.remove());
+            document.getElementById('batch-empty-state').style.display = 'block';
+            document.getElementById('batch-result-count').textContent = '0';
+            document.getElementById('batch-progress').style.display = 'none';
+        });
+
         // --- Dashboard & Navigation Logic ---
         function setupNavigation() {
             const navAnalyser = document.getElementById('nav-analyser');
+            const navBatch = document.getElementById('nav-batch');
             const navDashboard = document.getElementById('nav-dashboard');
             const navSettings = document.getElementById('nav-settings');
             const analyser_view = document.getElementById('analyser-view');
+            const batch_view = document.getElementById('batch-view');
             const dashboard_view = document.getElementById('dashboard-view');
             const settings_view = document.getElementById('settings-view');
 
             navAnalyser.addEventListener('click', (e) => {
                 e.preventDefault();
                 analyser_view.style.display = 'block';
+                batch_view.style.display = 'none';
                 dashboard_view.style.display = 'none';
                 settings_view.style.display = 'none';
                 navAnalyser.classList.add('active');
+                navBatch.classList.remove('active');
+                navDashboard.classList.remove('active');
+                navSettings.classList.remove('active');
+            });
+
+            navBatch.addEventListener('click', (e) => {
+                e.preventDefault();
+                analyser_view.style.display = 'none';
+                batch_view.style.display = 'block';
+                dashboard_view.style.display = 'none';
+                settings_view.style.display = 'none';
+                navBatch.classList.add('active');
+                navAnalyser.classList.remove('active');
                 navDashboard.classList.remove('active');
                 navSettings.classList.remove('active');
             });
@@ -1947,10 +2099,12 @@
             navDashboard.addEventListener('click', (e) => {
                 e.preventDefault();
                 analyser_view.style.display = 'none';
+                batch_view.style.display = 'none';
                 dashboard_view.style.display = 'block';
                 settings_view.style.display = 'none';
                 navDashboard.classList.add('active');
                 navAnalyser.classList.remove('active');
+                navBatch.classList.remove('active');
                 navSettings.classList.remove('active');
                 loadHistory();
                 loadMonitorStatus();
@@ -1960,10 +2114,12 @@
             navSettings.addEventListener('click', (e) => {
                 e.preventDefault();
                 analyser_view.style.display = 'none';
+                batch_view.style.display = 'none';
                 dashboard_view.style.display = 'none';
                 settings_view.style.display = 'block';
                 navSettings.classList.add('active');
                 navAnalyser.classList.remove('active');
+                navBatch.classList.remove('active');
                 navDashboard.classList.remove('active');
                 loadAndApplyConfig(); // Also load settings when navigating to the page
                 populateModelDropdowns(); // Ensure dropdowns are populated
@@ -2599,13 +2755,17 @@
                 };
 
                 populateSelect('agent-model', models.agent_models, true);
+                populateSelect('batch-agent-model', models.agent_models, true);
                 populateSelect('default-agent-model', models.agent_models, true);
                 populateSelect('whisper-model', models.whisper_models, true);
+                populateSelect('batch-whisper-model', models.whisper_models, true);
                 populateSelect('default-whisper', models.whisper_models, false); // Whisper settings just use the ID
 
                 // Now that dropdowns are populated, apply the config
                 document.getElementById('agent-model').value = defaultConfig.default_agent_model;
+                document.getElementById('batch-agent-model').value = defaultConfig.default_agent_model;
                 document.getElementById('whisper-model').value = defaultConfig.default_whisper;
+                document.getElementById('batch-whisper-model').value = defaultConfig.default_whisper;
                 document.getElementById('default-agent-model').value = defaultConfig.default_agent_model;
                 document.getElementById('default-whisper').value = defaultConfig.default_whisper;
 

@@ -14,6 +14,7 @@ from collections import OrderedDict, Counter
 import contextlib
 import io
 import subprocess
+import traceback
 import tkinter as tk
 from tkinter import filedialog
 from datetime import datetime
@@ -378,15 +379,14 @@ def infer_ollama_runtime_device(
     return "CPU"
 
 
-def clear_vram_before_summary() -> None:
-    """Free CUDA memory before loading the LLM summary model after Whisper transcription."""
+def clear_vram_before_summary(unload_models: bool = True) -> None:
+    """Free CUDA memory before a GPU summary without always evicting Whisper."""
     if DEVICE != 'cuda' or not torch.cuda.is_available():
         return
 
-    try:
-        loaded_models.clear()
-    except Exception:
-        pass
+    if unload_models:
+        with loaded_models_lock:
+            loaded_models.clear()
 
     try:
         gc.collect()
@@ -399,7 +399,16 @@ def clear_vram_before_summary() -> None:
     except Exception:
         pass
 
-    print("INFO: CUDA VRAM cache cleared before summary model load.")
+    print(f"INFO: CUDA VRAM cache cleared before summary model load (unload_models={unload_models}).")
+
+
+def clear_model_context_after_execution() -> None:
+    """Clear transient execution memory without evicting reusable model weights."""
+    gc.collect()
+    if DEVICE == 'cuda' and torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+    print("INFO: Transient model context cleared after execution; model cache retained.")
 
 
 def format_diarized_segments(segments: list[dict[str, Any]] | None) -> str:
@@ -508,6 +517,8 @@ def validate_issue_code_mapping() -> dict[str, str]:
     phrase_map = {
         "my pack expired": "PLAN_UPGRADE",
         "renew my internet": "PLAN_UPGRADE",
+        "fiber cut": "FIBER_CUT",
+        "fiverr cut": "FIBER_CUT",
         "router not working": "INTERNET_ISSUE",
         "wifi is down": "INTERNET_ISSUE",
         "bill payment done": "PAYMENT_CONFIRMATION",
@@ -531,6 +542,8 @@ def validate_issue_code_mapping() -> dict[str, str]:
             code = "NEW_CONNECTION"
         elif matches_any(["bill", "billing", "payment", "upi", "invoice", "due", "recharge", "deactivated", "auto debit", "refund"]):
             code = "PAYMENT_CONFIRMATION"
+        elif matches_any(["fiber cut", "fibre cut", "fiverr cut", "fiver cut", "cut fiber", "cut fibre", "cut cable", "damaged fiber cable"]):
+            code = "FIBER_CUT"
         elif matches_any(["internet", "router", "wifi", "slow", "disconnect", "los", "outage", "down", "not working"]):
             code = "INTERNET_ISSUE"
         elif matches_any(["plan", "upgrade", "downgrade", "speed", "pack", "package", "expiry", "expired", "validity"]):
@@ -695,6 +708,13 @@ def enforce_issue_recommendation(summary_text: str, issue_code: str) -> str:
     if not recommendation:
         return summary_text
     return _replace_summary_field(summary_text, 'Recommended Next Step', recommendation)
+
+
+def enforce_issue_category(summary_text: str, issue_category: str) -> str:
+    """Keep the displayed category aligned with the deterministic issue route."""
+    if not summary_text:
+        return summary_text
+    return _replace_summary_field(summary_text, 'Issue Category', issue_category)
 
 
 def load_monitor_config() -> dict[str, Any]:
@@ -1451,6 +1471,11 @@ def build_analysis_graph():
             "tv and ott", "broadband plan for tv", "broadband plan for ott",
             "plan for television", "plan for home tv"
         ]
+        fiber_cut_tokens = [
+            "fiber cut", "fibre cut", "fiverr cut", "fiver cut", "cut fiber",
+            "cut fibre", "cut cable", "cable cut", "line cut", "digging line cut",
+            "rain damage"
+        ]
 
         if matches_any(renewal_tokens):
             issue_code = "PLAN_UPGRADE"
@@ -1471,6 +1496,10 @@ def build_analysis_graph():
         elif matches_any(configure_router_tokens):
             issue_code = "CONFIGURE_ROUTER"
             category = "Router Configuration / Device Setup"
+            specialist_path = "Connectivity and field-support specialist"
+        elif matches_any(fiber_cut_tokens):
+            issue_code = "FIBER_CUT"
+            category = "Connectivity Issue"
             specialist_path = "Connectivity and field-support specialist"
         elif matches_any(connectivity_tokens):
             issue_code = "INTERNET_ISSUE"
@@ -1568,8 +1597,8 @@ Please provide the English summary now. Structure your response using the follow
 
     def run_summary(state: AgentState, specialist_focus: str) -> dict[str, Any]:
         agent_model = state.get("agent_model", "llama3")
-        clear_vram_before_summary()
         summary_runtime_device = infer_ollama_runtime_device(agent_model)
+        clear_vram_before_summary(unload_models=summary_runtime_device == "GPU")
         print(f"INFO: Summary model '{agent_model}' resolved to Ollama runtime device: {summary_runtime_device}.")
         llm = ChatOllama(model=agent_model, temperature=0)
         llm_response = llm.invoke(build_prompt(state, specialist_focus))
@@ -1583,6 +1612,10 @@ Please provide the English summary now. Structure your response using the follow
             summary_text,
             state.get("transcription_text", ""),
             state.get("ocr_result", []),
+        )
+        summary_text = enforce_issue_category(
+            summary_text,
+            state.get("issue_category", "Other Issues"),
         )
         summary_text = enforce_issue_recommendation(
             summary_text,
@@ -2455,15 +2488,129 @@ def process_files():
             if cleaned_audio_candidate and os.path.exists(cleaned_audio_candidate):
                 os.remove(cleaned_audio_candidate)
 
-            # 6. Clear GPU cache and unload models after analysis
+            # 6. Clear model context after analysis
+            clear_model_context_after_execution()
+
+    return Response(generate_progress(), mimetype='text/event-stream')
+
+
+@app.route('/api/process-batch', methods=['POST'])
+def process_batch_files():
+    """Process multiple audio or image files sequentially and stream each result."""
+    uploaded_files = [file for file in request.files.getlist('files') if file and file.filename]
+    if not uploaded_files:
+        return jsonify({"error": "Please upload at least one audio or image file."}), 400
+
+    # Persist uploads while Flask's request stream is still open. The SSE
+    # generator may start after the request files have already been closed.
+    batch_files: list[dict[str, str]] = []
+    saved_paths: list[str] = []
+    for uploaded_file in uploaded_files:
+        filename = os.path.basename(uploaded_file.filename)
+        extension = os.path.splitext(filename)[1].lower()
+        is_audio = extension in SUPPORTED_AUDIO_EXTENSIONS
+        is_image = extension in SUPPORTED_IMAGE_EXTENSIONS
+        if not is_audio and not is_image:
+            batch_files.append({
+                'name': filename,
+                'kind': 'unsupported',
+                'path': '',
+            })
+            continue
+
+        saved_path = os.path.join(
+            app.config['UPLOAD_FOLDER'],
+            f"{uuid.uuid4()}_{filename}",
+        )
+        # Read the request stream immediately and close it before SSE starts.
+        # FileStorage.save() can otherwise retain a closed multipart stream.
+        file_bytes = uploaded_file.read()
+        with open(saved_path, 'wb') as destination:
+            destination.write(file_bytes)
+        saved_paths.append(saved_path)
+        batch_files.append({
+            'name': filename,
+            'kind': 'audio' if is_audio else 'image',
+            'path': saved_path,
+        })
+
+    app_config = load_model_names()
+    model_name = request.form.get('model', app_config.get('default_whisper', 'base'))
+    agent_model = request.form.get('agent_model', app_config.get('default_agent_model', 'llama3'))
+
+    def generate_batch_progress():
+        try:
+            for index, batch_file in enumerate(batch_files):
+                filename = batch_file['name']
+                file_kind = batch_file['kind']
+                if file_kind == 'unsupported':
+                    yield f"data: {json.dumps({'type': 'file_error', 'index': index, 'name': filename, 'error': 'Unsupported file type.'})}\n\n"
+                    continue
+
+                saved_path = batch_file['path']
+                is_audio = file_kind == 'audio'
+                audio_path = saved_path if is_audio else None
+                screenshot_path = saved_path if not is_audio else None
+                result = {
+                    'summary': '',
+                    'transcription': '',
+                    'ocr': [],
+                }
+
+                yield f"data: {json.dumps({'type': 'file_start', 'index': index, 'name': filename, 'kind': file_kind})}\n\n"
+                initial_state: AgentState = {
+                    **build_initial_state(
+                        audio_path=audio_path,
+                        screenshot_path=screenshot_path,
+                        audio_filename=filename if is_audio else 'N/A',
+                        screenshot_filename=filename if not is_audio else 'N/A',
+                        model_name=model_name,
+                        agent_model=agent_model,
+                        require_human_review=False,
+                        approval_granted=False,
+                        persist_history=True,
+                    )
+                }
+
+                yield f"data: {json.dumps({'type': 'file_progress', 'index': index, 'status': 'in_progress', 'message': 'Analysing file...'})}\n\n"
+                try:
+                    for update in ANALYSIS_GRAPH.stream(initial_state, stream_mode='updates'):
+                        if 'ocr' in update:
+                            result['ocr'] = update['ocr'].get('ocr_result', [])
+                        if 'transcribe' in update:
+                            result['transcription'] = update['transcribe'].get('transcription_text', '')
+                        for summary_node in ('summarize_billing', 'summarize_connectivity', 'summarize_general'):
+                            if summary_node in update:
+                                result['summary'] = update[summary_node].get('summary_text', '')
+                except Exception as exc:
+                    error_details = traceback.format_exc()
+                    print(f"ERROR: Batch analysis failed for '{filename}': {exc}")
+                    print(error_details)
+                    yield f"data: {json.dumps({'type': 'file_error', 'index': index, 'name': filename, 'error': str(exc)})}\n\n"
+                    continue
+                finally:
+                    clear_model_context_after_execution()
+
+                yield f"data: {json.dumps({'type': 'file_complete', 'index': index, 'name': filename, 'kind': file_kind, **result})}\n\n"
+        except GeneratorExit:
+            print("INFO: SSE client disconnected during /api/process-batch stream.")
+            return
+        except Exception as exc:
+            error_details = traceback.format_exc()
+            print(f"ERROR: Batch request failed: {exc}")
+            print(error_details)
+            yield f"data: {json.dumps({'type': 'batch_error', 'error': str(exc)})}\n\n"
+        finally:
+            for saved_path in saved_paths:
+                if os.path.exists(saved_path):
+                    os.remove(saved_path)
             if DEVICE == 'cuda':
                 loaded_models.clear()
                 gc.collect()
                 torch.cuda.empty_cache()
                 torch.cuda.ipc_collect()
-                print("INFO: GPU cache cleared and all models unloaded.")
 
-    return Response(generate_progress(), mimetype='text/event-stream')
+    return Response(generate_batch_progress(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
     init_customer_database()

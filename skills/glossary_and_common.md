@@ -47,6 +47,7 @@ This file normalizes informal customer phrases into formal ISP terminology so is
 
 ### 2. FIBER_CUT
 - **Keywords:** "digging line cut", "fiber cut", "rain damage", "cut cable"
+- **Classification:** `Connectivity Issue` (`FIBER_CUT`); route to the Connectivity and field-support specialist.
 - **SOP:**
   1. Verify if LOS light on ONT router is blinking RED.
   2. Cross-check with network operations for major line cuts in the area.
